@@ -1,0 +1,25 @@
+[project]
+name = "nubrain"
+version = "0.0.0"
+description = "NuBrain connect"
+authors = [{ name = "NuBrain Team", email = "hello@nubrain.io" }]
+requires-python = ">=3.10"
+readme = "README.md"
+dependencies = [
+    "brainflow>=5.16.0",
+    "certifi>=2025.4.26",
+    "charset-normalizer>=3.4.2",
+    "idna>=3.10",
+    "numpy>=2.2.6",
+    "pillow>=11.2.1",
+    "pygame>=2.6.1",
+    "requests>=2.32.3",
+    "scipy>=1.15.3",
+    "setuptools>=80.9.0",
+    "urllib3>=2.4.0",
+]
+license = "MIT"
+license-files = ["LICENSE"]
+
+[project.urls]
+Homepage = "https://github.com/ingo-m/nubrain-connect"
