@@ -21,5 +21,9 @@ dependencies = [
 license = "MIT"
 license-files = ["LICENSE"]
 
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
 [project.urls]
 Homepage = "https://github.com/ingo-m/nubrain-connect"
