@@ -2,7 +2,7 @@
 name = "nubrain"
 version = "0.0.0"
 description = "NuBrain connect"
-authors = [{ name = "NuBrain Team", email = "hello@nubrain.io" }]
+authors = [{ name = "nuBrain Team", email = "hello@nubrain.io" }]
 requires-python = ">=3.10"
 readme = "README.md"
 dependencies = [
@@ -24,6 +24,9 @@ license-files = ["LICENSE"]
 [build-system]
 requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["nubrain"]
 
 [project.urls]
 Homepage = "https://github.com/ingo-m/nubrain-connect"
