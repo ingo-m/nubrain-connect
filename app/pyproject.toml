@@ -29,4 +29,4 @@ build-backend = "hatchling.build"
 packages = ["nubrain"]
 
 [project.urls]
-Homepage = "https://github.com/ingo-m/nubrain-connect"
+Homepage = "https://nubrain.io/"
