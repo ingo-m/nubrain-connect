@@ -8,6 +8,7 @@ on:
       - main
     paths:
       - "app/**"
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -16,6 +17,9 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
+        with:
+          # Tell github action to use pyproject.toml for caching.
+          cache-dependency-path: "app/pyproject.toml"
 
       - name: Install dependencies
         working-directory: ./app
