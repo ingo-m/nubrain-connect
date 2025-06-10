@@ -30,19 +30,22 @@ jobs:
         run: pip install pipenv build twine
 
       - name: Install dependencies from Pipfile.lock
-        # Using --dev ensures that build/twine are available if you managed them with
-        # pipenv sync is faster than install as it assumes the lock file is up-to-date.
         run: pipenv sync --dev
 
+      - name: See file structure 1
+        run: ls -R
+
       - name: Build package
-        # The 'build' tool reads pyproject.toml and builds the package. It creates the
-        # distribution files in a 'dist/' directory.
-        run: python -m build ./app
+        # Set the working directory to './app' before running the build.
+        working-directory: ./app
+        # This will create the 'dist' directory inside 'app' -> './app/dist/'.
+        run: python -m build
+
+      - name: See file structure 2
+        run: ls -R
 
       - name: Publish package to PyPI
-        # Twine is the standard tool for securely uploading to PyPI.
-        run: python -m twine upload --non-interactive dist/*
+        run: python -m twine upload --non-interactive app/dist/*
         env:
-          # Use a PyPI API token for authentication
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
