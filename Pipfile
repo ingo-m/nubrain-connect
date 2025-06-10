@@ -1,15 +1,13 @@
 [[source]]
-name = "pypi"
 url = "https://pypi.org/simple"
 verify_ssl = true
+name = "pypi"
 
 [packages]
-numpy = "*"
-pygame = "*"
-requests = "*"
-brainflow = "*"
-Pillow = "*"
-scipy = "*"
+nubrain = {file = "app", editable = true}
+
+[dev-packages]
+nubrain = {extras = ["dev"], file = "app", editable = true}
 
 [requires]
 python_version = "3.12"

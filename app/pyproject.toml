@@ -15,11 +15,15 @@ dependencies = [
     "pygame>=2.6.1",
     "requests>=2.32.3",
     "scipy>=1.15.3",
-    "setuptools>=80.9.0",
+    "setuptools>=80.9.0",        # Needed?
     "urllib3>=2.4.0",
 ]
 license = "MIT"
 license-files = ["LICENSE"]
+
+# Add this section for development dependencies
+[project.optional-dependencies]
+dev = ["build", "twine"]
 
 [build-system]
 requires = ["hatchling >= 1.26"]

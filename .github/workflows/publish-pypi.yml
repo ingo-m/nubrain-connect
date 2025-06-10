@@ -7,28 +7,42 @@ on:
     branches:
       - main
     paths:
+      # Trigger on changes to Pipfile.lock or the package itself.
+      - "Pipfile.lock"
       - "app/**"
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          # Tell github action to use pyproject.toml for caching.
-          cache-dependency-path: "app/pyproject.toml"
+          python-version: "3.12"
+          # This action has built-in caching for pipenv. It automatically uses
+          # Pipfile.lock as the cache key.
+          cache: "pipenv"
 
-      - name: Install dependencies
-        working-directory: ./app
-        run: uv sync
+      - name: Install build tools
+        run: pip install pipenv build twine
+
+      - name: Install dependencies from Pipfile.lock
+        # Using --dev ensures that build/twine are available if you managed them with
+        # pipenv sync is faster than install as it assumes the lock file is up-to-date.
+        run: pipenv sync --dev
 
       - name: Build package
-        working-directory: ./app
-        run: uv build
+        # The 'build' tool reads pyproject.toml and builds the package. It creates the
+        # distribution files in a 'dist/' directory.
+        run: python -m build ./app
 
-      - name: Publish package
-        working-directory: ./app
-        run: uv publish --token ${{ secrets.PYPI_TOKEN }}
+      - name: Publish package to PyPI
+        # Twine is the standard tool for securely uploading to PyPI.
+        run: python -m twine upload --non-interactive dist/*
+        env:
+          # Use a PyPI API token for authentication
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
