@@ -1,6 +1,6 @@
 [project]
 name = "nubrain"
-version = "0.0.5"
+version = "0.0.6"
 description = "NuBrain connect"
 authors = [{ name = "nuBrain Team", email = "hello@nubrain.io" }]
 requires-python = ">=3.10"
@@ -9,6 +9,7 @@ dependencies = [
     "brainflow>=5.16.0",
     "certifi>=2025.4.26",
     "charset-normalizer>=3.4.2",
+    "h5py",
     "idna>=3.10",
     "numpy>=2.2.6",
     "pillow>=11.2.1",

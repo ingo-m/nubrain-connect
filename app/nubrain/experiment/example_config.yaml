@@ -4,6 +4,7 @@
 demo_mode: True
 
 output_directory: "/example/path"
+image_directory: "/example/images" # Folder with images to show during the experiment
 
 eeg_channel_mapping:
   0: "O1" # N1 Cyton pin
@@ -33,3 +34,5 @@ inter_block_grey_duration: 2.0
 
 n_blocks: 3
 images_per_block: 3
+
+eeg_device_address: "/dev/ttyUSB0"
