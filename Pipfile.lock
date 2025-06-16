@@ -129,6 +129,14 @@
             "markers": "python_version >= '3.7'",
             "version": "==3.4.2"
         },
+        "h5py": {
+            "hashes": [
+                "sha256:0cbd41f4e3761f150aa5b662df991868ca533872c95467216f2bec5fcad84882",
+                "sha256:2372116b2e0d5d3e5e705b7f663f7c8d96fa79a4052d250484ef91d24d6a08f4"
+            ],
+            "markers": "python_version >= '3.9'",
+            "version": "==3.14.0"
+        },
         "idna": {
             "hashes": [
                 "sha256:12f65c9b470abda6dc35cf8e63cc574b1c52b11df2c86030af0ac09b01b13ea9",
@@ -139,7 +147,8 @@
         },
         "nubrain": {
             "editable": true,
-            "file": "app"
+            "file": "app",
+            "markers": "python_version >= '3.10'"
         },
         "numpy": {
             "hashes": [
@@ -805,6 +814,14 @@
             "markers": "python_version >= '3.8'",
             "version": "==2.2.0"
         },
+        "h5py": {
+            "hashes": [
+                "sha256:0cbd41f4e3761f150aa5b662df991868ca533872c95467216f2bec5fcad84882",
+                "sha256:2372116b2e0d5d3e5e705b7f663f7c8d96fa79a4052d250484ef91d24d6a08f4"
+            ],
+            "markers": "python_version >= '3.9'",
+            "version": "==3.14.0"
+        },
         "id": {
             "hashes": [
                 "sha256:292cb8a49eacbbdbce97244f47a97b4c62540169c976552e497fd57df0734c1d",
@@ -973,7 +990,8 @@
         },
         "nubrain": {
             "editable": true,
-            "file": "app"
+            "file": "app",
+            "markers": "python_version >= '3.10'"
         },
         "numpy": {
             "hashes": [

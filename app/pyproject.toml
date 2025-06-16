@@ -1,6 +1,6 @@
 [project]
 name = "nubrain"
-version = "0.0.5"
+version = "0.0.6"
 description = "NuBrain connect"
 authors = [{ name = "nuBrain Team", email = "hello@nubrain.io" }]
 requires-python = ">=3.10"
