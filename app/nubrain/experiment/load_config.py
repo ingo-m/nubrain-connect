@@ -20,6 +20,7 @@ class EegExperimentConfig:
 
     demo_mode: bool
     output_directory: str
+    image_directory: str  # Folder with images to show during the experiment
 
     # Filter parameters
     bandstop_low_cutoff_freq: float
@@ -38,6 +39,8 @@ class EegExperimentConfig:
     # Experiment structure
     n_blocks: int
     images_per_block: int
+
+    eeg_device_address: str
 
     # Use default_factory for mutable types like dict to avoid them being shared across
     # all instances of the class.

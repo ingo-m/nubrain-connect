@@ -1,6 +1,7 @@
 import argparse
 
-from experiment.load_config import load_config_yaml
+from nubrain.experiment.load_config import load_config_yaml
+from nubrain.experiment.main import experiment
 
 
 def main():
@@ -24,7 +25,8 @@ def main():
 
     # Load EEG experiment config from yaml file.
     yaml_file_path = args.config
-    config_dict = load_config_yaml(yaml_file_path=yaml_file_path)
+    config = load_config_yaml(yaml_file_path=yaml_file_path)
+    experiment(config=config)
 
 
 if __name__ == "__main__":
