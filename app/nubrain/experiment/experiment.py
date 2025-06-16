@@ -21,6 +21,11 @@ from brainflow.data_filter import (
 from PIL import Image
 from scipy.stats import zscore
 
+rest_condition_color = (128, 128, 128)
+stim_start_marker = -1.0
+stim_end_marker = -2.0
+
+
 # --------------------------------------------------------------------------------------
 # *** Helper functions
 
@@ -447,14 +452,14 @@ def experiment(
             print("Starting initial grey screen...")
             # sleep(0.1)
             pygame.time.wait(100)
-            screen.fill(GREY)
+            screen.fill(rest_condition_color)
             pygame.display.flip()
             # sleep(0.1)
             pygame.time.wait(100)
-            screen.fill(GREY)
+            screen.fill(rest_condition_color)
             pygame.display.flip()
-            # sleep(initial_grey_duration)
-            pygame.time.wait(int(round(initial_grey_duration * 100.0)))
+            # sleep(initial_rest_duration)
+            pygame.time.wait(int(round(initial_rest_duration * 100.0)))
 
             # Block loop.
             for block_num in range(n_blocks):
@@ -478,7 +483,7 @@ def experiment(
                     _ = board.get_board_data()
 
                     # Display image. Clear previous screen content (optional, good practice).
-                    screen.fill(GREY)
+                    screen.fill(rest_condition_color)
                     screen.blit(current_image, img_rect)
                     pygame.display.flip()
 
@@ -493,7 +498,7 @@ def experiment(
                         pass
 
                     # End of stimulus presentation. Display ISI grey screen.
-                    screen.fill(GREY)
+                    screen.fill(rest_condition_color)
                     pygame.display.flip()
                     board.insert_marker(stim_end_marker)
                     t3 = time()
@@ -540,7 +545,7 @@ def experiment(
                     print(
                         f"End of Block {block_num + 1}. Starting inter-block grey screen..."
                     )
-                    screen.fill(GREY)
+                    screen.fill(rest_condition_color)
                     pygame.display.flip()
                     # sleep(inter_block_grey_duration)
                     pygame.time.wait(int(round(inter_block_grey_duration * 100.0)))
@@ -549,8 +554,8 @@ def experiment(
 
             # Final message (optional)
             if running:  # Only show if not quit early
-                screen.fill(GREY)
-                end_text = font.render("Experiment Complete.", True, BLACK)
+                screen.fill(rest_condition_color)
+                end_text = font.render("Experiment Complete.", True, (0.0, 0.0, 0.0))
                 text_rect = end_text.get_rect(
                     center=(screen_width // 2, screen_height // 2)
                 )

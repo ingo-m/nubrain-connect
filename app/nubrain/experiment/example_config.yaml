@@ -1,0 +1,35 @@
+# nubrain_endpoint: "http://platform.nubrain.io/api/v1/collect"
+# nubrain_api_key: "abc012"
+
+demo_mode: True
+
+output_directory: "/example/path"
+
+eeg_channel_mapping:
+  0: "O1" # N1 Cyton pin
+  1: "O2" # N2 Cyton pin
+  2: "P4" # N3 Cyton pin
+  3: "P3" # N4 Cyton pin
+  4: "C4" # N5 Cyton pin
+  5: "C3" # N6 Cyton pin
+  6: "F4" # N7 Cyton pin
+  7: "F3" # N8 Cyton pin
+
+# Bandstop filter
+bandstop_low_cutoff_freq: 49.0 # Hz
+bandstop_high_cutoff_freq: 51.0 # Hz
+bandstop_filter_order: 4
+
+# Bandpass filter
+bandpass_low_cutoff_freq: 5.0 # 55.0  # Hz
+bandpass_high_cutoff_freq: 95.0 # Hz
+bandpass_filter_order: 4
+
+# Condition durations in seconds:
+initial_rest_duration: 3.0
+image_duration: 1.0
+isi_duration: 0.5
+inter_block_grey_duration: 2.0
+
+n_blocks: 3
+images_per_block: 3
