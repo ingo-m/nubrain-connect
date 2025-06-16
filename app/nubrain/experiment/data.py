@@ -98,16 +98,21 @@ def eeg_data_logging(subprocess_params: dict):
         # ------------------------------------------------------------------------------
         # *** Initialize hdf5 dataset for metadata
 
-        # Write metadata to attributes. Iterate through the dictionary and write each
-        # key-value pair.
+        # Create group for metadata.
+        metadata_group = file.create_group("metadata")
+
+        # Iterate over the Python dictionary and save each item as an attribute of the
+        # "metadata" group.
         for key, value in experiment_metadata.items():
-            # If the value is a dictionary itself, we can't write it directly. Serialize
-            # it to a JSON string first.
-            if isinstance(value, dict):
-                # The 'json.dumps' function converts a Python dict to a JSON string.
-                file.attrs["experiment_metadata"][key] = json.dumps(value)
+            # HDF5 attributes have limitations on data types. Complex types like
+            # dictionaries or tuples are not natively supported. We check if the value
+            # is a type that needs to be converted to a string. JSON is a convenient
+            # format for this serialization.
+            if isinstance(value, (dict, list, tuple)):
+                # Serialize the complex type into a JSON string.
+                metadata_group.attrs[key] = json.dumps(value)
             else:
-                file.attrs["experiment_metadata"][key] = value
+                metadata_group.attrs[key] = value
 
         # ------------------------------------------------------------------------------
         # *** Initialize hdf5 dataset for EEG data
@@ -203,7 +208,6 @@ def eeg_data_logging(subprocess_params: dict):
             image_filepath = new_stimulus_data["image_filepath"]
             image_category = new_stimulus_data["image_category"]
             image_description = new_stimulus_data["image_description"]
-            image_data = new_stimulus_data["image_data"]
 
             data_to_write = np.empty((1,), dtype=stimulus_dtype)
             data_to_write[0]["stimulus_start_time"] = stimulus_start_time
@@ -214,7 +218,7 @@ def eeg_data_logging(subprocess_params: dict):
             data_to_write[0]["image_description"] = image_description
             # The image data is stored as a numpy array of bytes (uint8).
             data_to_write[0]["image_data"] = np.frombuffer(
-                image_data,
+                image_bytes,
                 dtype=np.uint8,
             )
 
