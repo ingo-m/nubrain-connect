@@ -23,13 +23,13 @@ def experiment(config: dict):
 
     eeg_channel_mapping = config["eeg_channel_mapping"]
 
-    bandstop_low_cutoff_freq = config["bandstop_low_cutoff_freq"]
-    bandstop_high_cutoff_freq = config["bandstop_high_cutoff_freq"]
-    bandstop_filter_order = config["bandstop_filter_order"]
+    # bandstop_low_cutoff_freq = config["bandstop_low_cutoff_freq"]
+    # bandstop_high_cutoff_freq = config["bandstop_high_cutoff_freq"]
+    # bandstop_filter_order = config["bandstop_filter_order"]
 
-    bandpass_low_cutoff_freq = config["bandpass_low_cutoff_freq"]
-    bandpass_high_cutoff_freq = config["bandpass_high_cutoff_freq"]
-    bandpass_filter_order = config["bandpass_filter_order"]
+    # bandpass_low_cutoff_freq = config["bandpass_low_cutoff_freq"]
+    # bandpass_high_cutoff_freq = config["bandpass_high_cutoff_freq"]
+    # bandpass_filter_order = config["bandpass_filter_order"]
 
     initial_rest_duration = config["initial_rest_duration"]
     image_duration = config["image_duration"]
@@ -94,18 +94,32 @@ def experiment(config: dict):
     data_logging_queue = mp.Queue()
 
     subprocess_params = {
+        "demo_mode": demo_mode,
+        "image_directory": image_directory,
+        # EEG parameters
         "eeg_board_description": eeg_board_description,
         "eeg_sampling_rate": eeg_sampling_rate,
         "n_channels_total": n_channels_total,
         "eeg_channels": eeg_channels,
-        "eeg_channel_mapping": eeg_channel_mapping,
         "marker_channel": marker_channel,
-        "bandstop_low_cutoff_freq": bandstop_low_cutoff_freq,
-        "bandstop_high_cutoff_freq": bandstop_high_cutoff_freq,
-        "bandstop_filter_order": bandstop_filter_order,
-        "bandpass_low_cutoff_freq": bandpass_low_cutoff_freq,
-        "bandpass_high_cutoff_freq": bandpass_high_cutoff_freq,
-        "bandpass_filter_order": bandpass_filter_order,
+        "eeg_channel_mapping": eeg_channel_mapping,
+        "eeg_device_address": eeg_device_address,
+        # Timing parameters
+        "initial_rest_duration": initial_rest_duration,
+        "image_duration": image_duration,
+        "isi_duration": isi_duration,
+        "inter_block_grey_duration": inter_block_grey_duration,
+        # Experiment structure
+        "n_blocks": n_blocks,
+        "images_per_block": images_per_block,
+        # Filter parameters
+        # "bandstop_low_cutoff_freq": bandstop_low_cutoff_freq,
+        # "bandstop_high_cutoff_freq": bandstop_high_cutoff_freq,
+        # "bandstop_filter_order": bandstop_filter_order,
+        # "bandpass_low_cutoff_freq": bandpass_low_cutoff_freq,
+        # "bandpass_high_cutoff_freq": bandpass_high_cutoff_freq,
+        # "bandpass_filter_order": bandpass_filter_order,
+        # Misc
         # "nubrain_endpoint": nubrain_endpoint,
         # "nubrain_api_key": nubrain_api_key,
         "path_out_data": path_out_data,
@@ -206,18 +220,21 @@ def experiment(config: dict):
 
                     board_data = board.get_board_data()
 
-                    sample_metadata = {
+                    stimulus_data = {
                         "stimulus_start_time": t1,
                         "stimulus_end_time": t3,
                         "stimulus_duration_s": t3 - t1,
                         "image_filepath": image_filepath,
+                        "image_category": "not implemented",  # TODO
+                        "image_description": "not implemented",  # TODO
                     }
 
-                    data_to_send = {
+                    data_to_queue = {
                         "board_data": board_data,
+                        "stimulus_data": stimulus_data,
                     }
 
-                    data_logging_queue.put(data_to_send)
+                    data_logging_queue.put(data_to_queue)
 
                     # Time until when to show grey screen.
                     t4 = t3 + isi_duration
@@ -253,13 +270,12 @@ def experiment(config: dict):
             # Final message (optional)
             if running:  # Only show if not quit early
                 screen.fill(global_config.rest_condition_color)
-                end_text = font.render("Experiment Complete.", True, (0.0, 0.0, 0.0))
+                end_text = font.render("Experiment complete.", True, (0.0, 0.0, 0.0))
                 text_rect = end_text.get_rect(
                     center=(screen_width // 2, screen_height // 2)
                 )
                 screen.blit(end_text, text_rect)
                 pygame.display.flip()
-                # sleep(0.5)
                 pygame.time.wait(500)
 
             running = False

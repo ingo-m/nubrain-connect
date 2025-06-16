@@ -3,12 +3,17 @@ import io
 import os
 
 import pygame
+from nubrain.experiment.global_config import GlobalConfig
 from PIL import Image
+
+global_config = GlobalConfig()
+max_img_storage_dimension = global_config.max_img_storage_dimension
 
 
 def load_and_scale_images(*, image_directory, screen_width, screen_height):
     """
-    Loads all PNG and JPEG images from a directory and scales them to fit the screen.
+    Loads all PNG and JPEG images from a directory and scales them to fit the screen (to
+    be used for stimulus presentation).
     """
     extensions = ("*.png", "*.jpg", "*.jpeg")
     image_files = []
@@ -27,7 +32,7 @@ def load_and_scale_images(*, image_directory, screen_width, screen_height):
             img = pygame.image.load(filepath)
             img_rect = img.get_rect()
 
-            # Calculate scaling factor to fit screen while maintaining aspect ratio
+            # Calculate scaling factor to fit screen while maintaining aspect ratio.
             scale_w = screen_width / img_rect.width
             scale_h = screen_height / img_rect.height
             scale = min(scale_w, scale_h)
@@ -43,9 +48,18 @@ def load_and_scale_images(*, image_directory, screen_width, screen_height):
     return loaded_images
 
 
-def resize_image(*, image_bytes, return_image_file_extension=False):
+def load_image_as_bytes(*, image_path: str):
     """
-    Resize image to maximal size before sending over network.
+    Load an image file from disk and return it as a bytes object.
+    """
+    with open(image_path, "rb") as f:
+        image_bytes = f.read()
+    return image_bytes
+
+
+def resize_image(*, image_bytes: bytes, return_image_file_extension: bool = False):
+    """
+    Resize image to maximal size (not used for stimulus presentation, but for logging).
     """
     image = Image.open(io.BytesIO(image_bytes))
 
@@ -65,29 +79,26 @@ def resize_image(*, image_bytes, return_image_file_extension=False):
 
     width, height = image.size
 
-    # Maximum dimension.
-    max_dimension = 256
-
     # Check if resizing is needed.
-    if (width > max_dimension) or (height > max_dimension):
+    if (width > max_img_storage_dimension) or (height > max_img_storage_dimension):
         # Calculate the new size maintaining the aspect ratio.
         if width > height:
-            new_width = max_dimension
-            new_height = int(max_dimension * height / width)
+            new_width = max_img_storage_dimension
+            new_height = int(max_img_storage_dimension * height / width)
         else:
-            new_height = max_dimension
-            new_width = int(max_dimension * width / height)
+            new_height = max_img_storage_dimension
+            new_width = int(max_img_storage_dimension * width / height)
 
         # Resize the image.
         image = image.resize((new_width, new_height), Image.Resampling.BILINEAR)
 
-    # Convert the image to bytes.
-    img_byte_arr = io.BytesIO()
+    # Convert the image to bytes again.
+    image_bytes_resized = io.BytesIO()
 
-    image.save(img_byte_arr, format=image_format)
-    img_byte_arr = bytearray(img_byte_arr.getvalue())
+    image.save(image_bytes_resized, format=image_format)
+    image_bytes_resized = bytearray(image_bytes_resized.getvalue())
 
     if return_image_file_extension:
-        return img_byte_arr, image_file_extension
+        return image_bytes_resized, image_file_extension
     else:
-        return img_byte_arr
+        return image_bytes_resized
