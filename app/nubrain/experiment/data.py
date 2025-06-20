@@ -145,7 +145,7 @@ def eeg_data_logging(subprocess_params: dict):
                 ("image_category", h5py.string_dtype(encoding="utf-8")),
                 # ("image_description", h5py.string_dtype(encoding="utf-8")),
                 (
-                    "image_data",
+                    "image_bytes",
                     h5py.vlen_dtype(np.uint8),
                 ),  # For variable-length byte arrays
             ]
@@ -217,7 +217,7 @@ def eeg_data_logging(subprocess_params: dict):
             data_to_write[0]["image_category"] = image_category
             # data_to_write[0]["image_description"] = image_description
             # The image data is stored as a numpy array of bytes (uint8).
-            data_to_write[0]["image_data"] = np.frombuffer(
+            data_to_write[0]["image_bytes"] = np.frombuffer(
                 image_bytes,
                 dtype=np.uint8,
             )
