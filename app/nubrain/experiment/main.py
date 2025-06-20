@@ -193,7 +193,7 @@ def experiment(config: dict):
                     if not running:
                         break  # Check for quit event
 
-                    image_filepath = image_and_metadata["image_filepath"]
+                    image_file_path = image_and_metadata["image_file_path"]
                     current_image = image_and_metadata["image"]
                     image_category = image_and_metadata["image_category"]
 
@@ -231,7 +231,7 @@ def experiment(config: dict):
                         "stimulus_start_time": t1,
                         "stimulus_end_time": t3,
                         "stimulus_duration_s": t3 - t1,
-                        "image_filepath": image_filepath,
+                        "image_file_path": image_file_path,
                         "image_category": image_category,
                     }
 
