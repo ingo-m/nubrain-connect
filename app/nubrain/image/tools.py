@@ -3,49 +3,89 @@ import io
 import os
 
 import pygame
-from nubrain.experiment.global_config import GlobalConfig
 from PIL import Image
+
+from nubrain.experiment.global_config import GlobalConfig
 
 global_config = GlobalConfig()
 max_img_storage_dimension = global_config.max_img_storage_dimension
 
 
-def load_and_scale_images(*, image_directory, screen_width, screen_height):
+def get_all_image_paths(*, image_directory: str):
     """
-    Loads all PNG and JPEG images from a directory and scales them to fit the screen (to
-    be used for stimulus presentation).
+    Get the path of all images in target directory.
     """
     extensions = ("*.png", "*.jpg", "*.jpeg")
-    image_files = []
+    image_file_paths = []
     for ext in extensions:
-        image_files.extend(glob.glob(os.path.join(image_directory, ext)))
+        image_file_paths.extend(glob.glob(os.path.join(image_directory, ext)))
 
-    loaded_images = []
-    if not image_files:
+    if not image_file_paths:
         print(f"No images found in directory: {image_directory}")
         return []
 
-    print(f"Found {len(image_files)} images.")
+    print(f"Found {len(image_file_paths)} images.")
 
-    for filepath in image_files:
-        try:
-            img = pygame.image.load(filepath)
-            img_rect = img.get_rect()
+    return image_file_paths
 
-            # Calculate scaling factor to fit screen while maintaining aspect ratio.
+
+def load_and_scale_image(
+    *,
+    image_file_path: str,
+    screen_width: int,
+    screen_height: int,
+):
+    """
+    Loads image as pygame object and scale them to fit the screen, if the image is
+    larger than the screen (to be used for stimulus presentation).
+    """
+
+    # (1) Load image.
+    try:
+        image = pygame.image.load(image_file_path)
+        img_rect = image.get_rect()
+
+        if (screen_width < img_rect.width) or (screen_height < img_rect.height):
+            # The image is larger than the screen. Scale it to fit the screen while
+            # maintaining the aspect ratio.
             scale_w = screen_width / img_rect.width
             scale_h = screen_height / img_rect.height
             scale = min(scale_w, scale_h)
 
             new_width = int(img_rect.width * scale)
             new_height = int(img_rect.height * scale)
+            image = pygame.transform.smoothscale(image, (new_width, new_height))
 
-            scaled_img = pygame.transform.smoothscale(img, (new_width, new_height))
-            loaded_images.append({"image_filepath": filepath, "image": scaled_img})
-            print(f"Loaded and scaled: {filepath}")
-        except pygame.error as e:
-            print(f"Error loading or scaling image {filepath}: {e}")
-    return loaded_images
+        else:
+            # The image is not too large for the screen.
+            pass
+
+    except pygame.error as e:
+        print(f"Error loading or scaling image {image_file_path}: {e}")
+        return None
+
+    # (2) Load image category from text file (if it exists).
+    try:
+        file_path_withou_extension = os.path.splitext(image_file_path)[0]
+        path_txt = file_path_withou_extension + ".txt"
+
+        if os.path.isfile(path_txt):
+            with open(path_txt, "r", encoding="utf-8") as file:
+                image_category = file.read()
+            image_category = image_category.strip()
+        else:
+            image_category = None
+    except Exception as e:
+        print(f"Error loading image metadata {path_txt}: {e}")
+        return None
+
+    image_and_metadata = {
+        "image_file_path": image_file_path,
+        "image": image,
+        "image_category": image_category,
+    }
+
+    return image_and_metadata
 
 
 def load_image_as_bytes(*, image_path: str):

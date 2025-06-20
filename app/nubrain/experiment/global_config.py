@@ -13,4 +13,4 @@ class GlobalConfig:
         # Data type for board data to use when saving to hdf5 file.
         self.hdf5_dtype = "float32"
         # Resize longest image dimension to this size when saving image to hdf5 file.
-        self.max_img_storage_dimension = 384
+        self.max_img_storage_dimension = 128
