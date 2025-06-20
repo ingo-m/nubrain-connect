@@ -143,7 +143,7 @@ def eeg_data_logging(subprocess_params: dict):
                 ("stimulus_duration_s", np.float32),
                 ("image_filepath", h5py.string_dtype(encoding="utf-8")),
                 ("image_category", h5py.string_dtype(encoding="utf-8")),
-                ("image_description", h5py.string_dtype(encoding="utf-8")),
+                # ("image_description", h5py.string_dtype(encoding="utf-8")),
                 (
                     "image_data",
                     h5py.vlen_dtype(np.uint8),
@@ -207,7 +207,7 @@ def eeg_data_logging(subprocess_params: dict):
             stimulus_duration_s = new_stimulus_data["stimulus_duration_s"]
             image_filepath = new_stimulus_data["image_filepath"]
             image_category = new_stimulus_data["image_category"]
-            image_description = new_stimulus_data["image_description"]
+            # image_description = new_stimulus_data["image_description"]
 
             data_to_write = np.empty((1,), dtype=stimulus_dtype)
             data_to_write[0]["stimulus_start_time"] = stimulus_start_time
@@ -215,7 +215,7 @@ def eeg_data_logging(subprocess_params: dict):
             data_to_write[0]["stimulus_duration_s"] = stimulus_duration_s
             data_to_write[0]["image_filepath"] = image_filepath
             data_to_write[0]["image_category"] = image_category
-            data_to_write[0]["image_description"] = image_description
+            # data_to_write[0]["image_description"] = image_description
             # The image data is stored as a numpy array of bytes (uint8).
             data_to_write[0]["image_data"] = np.frombuffer(
                 image_bytes,

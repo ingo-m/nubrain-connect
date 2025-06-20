@@ -8,7 +8,7 @@ from brainflow.board_shim import BoardIds, BoardShim, BrainFlowInputParams
 
 from nubrain.experiment.data import eeg_data_logging
 from nubrain.experiment.global_config import GlobalConfig
-from nubrain.image.tools import load_and_scale_images
+from nubrain.image.tools import get_all_image_paths, load_and_scale_image
 from nubrain.misc.datetime import get_formatted_current_datetime
 
 
@@ -54,6 +54,15 @@ def experiment(config: dict):
 
     if os.path.isfile(path_out_data):
         raise AssertionError(f"Target file aready exists: {path_out_data}")
+
+    # ----------------------------------------------------------------------------------
+    # *** Get image paths
+
+    image_file_paths = get_all_image_paths(image_directory=image_directory)
+
+    if not image_file_paths:
+        raise AssertionError(f"Found no images at {image_directory}")
+    print(f"Found {len(image_file_paths)} images")
 
     # ----------------------------------------------------------------------------------
     # *** Prepare EEG measurement
@@ -151,19 +160,18 @@ def experiment(config: dict):
         pygame.display.set_caption("Image Presentation Experiment")
         pygame.mouse.set_visible(False)  # Hide the mouse cursor
 
-        # Load images
-        all_images = load_and_scale_images(
-            image_directory=image_directory,
-            screen_width=screen_width,
-            screen_height=screen_height,
-        )
-
-        if not all_images:
-            print("No images loaded. Exiting.")
-            pygame.quit()
-            break
-
         font = pygame.font.Font(None, 48)  # Basic font for messages
+
+        # Load first image.
+        image_and_metadata = None
+        while image_and_metadata is None:
+            # Select a random image from the full list.
+            random_image_file_path = random.choice(image_file_paths)
+            image_and_metadata = load_and_scale_image(
+                image_file_path=random_image_file_path,
+                screen_width=screen_width,
+                screen_height=screen_height,
+            )
 
         try:
             # 1. Initial grey screen
@@ -185,16 +193,15 @@ def experiment(config: dict):
                     if not running:
                         break  # Check for quit event
 
-                    # Select a random image from the full list.
-                    random_sample = random.choice(all_images)
-                    image_filepath = random_sample["image_filepath"]
-                    current_image = random_sample["image"]
+                    image_filepath = image_and_metadata["image_filepath"]
+                    current_image = image_and_metadata["image"]
+                    image_category = image_and_metadata["image_category"]
 
                     img_rect = current_image.get_rect(
                         center=(screen_width // 2, screen_height // 2)
                     )
 
-                    # Clear board buffer
+                    # Clear board buffer.
                     _ = board.get_board_data()
 
                     # Display image. Clear previous screen content.
@@ -225,8 +232,7 @@ def experiment(config: dict):
                         "stimulus_end_time": t3,
                         "stimulus_duration_s": t3 - t1,
                         "image_filepath": image_filepath,
-                        "image_category": "not implemented",  # TODO
-                        "image_description": "not implemented",  # TODO
+                        "image_category": image_category,
                     }
 
                     data_to_queue = {
@@ -235,6 +241,17 @@ def experiment(config: dict):
                     }
 
                     data_logging_queue.put(data_to_queue)
+
+                    # Load next image.
+                    image_and_metadata = None
+                    while image_and_metadata is None:
+                        # Select a random image from the full list.
+                        random_image_file_path = random.choice(image_file_paths)
+                        image_and_metadata = load_and_scale_image(
+                            image_file_path=random_image_file_path,
+                            screen_width=screen_width,
+                            screen_height=screen_height,
+                        )
 
                     # Time until when to show grey screen.
                     t4 = t3 + isi_duration
