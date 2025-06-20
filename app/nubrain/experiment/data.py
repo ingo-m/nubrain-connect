@@ -141,7 +141,7 @@ def eeg_data_logging(subprocess_params: dict):
                 ("stimulus_start_time", np.uint64),
                 ("stimulus_end_time", np.uint64),
                 ("stimulus_duration_s", np.float32),
-                ("image_filepath", h5py.string_dtype(encoding="utf-8")),
+                ("image_file_path", h5py.string_dtype(encoding="utf-8")),
                 ("image_category", h5py.string_dtype(encoding="utf-8")),
                 # ("image_description", h5py.string_dtype(encoding="utf-8")),
                 (
@@ -198,14 +198,14 @@ def eeg_data_logging(subprocess_params: dict):
 
             hdf5_stimulus_data = file["stimulus_data"]
 
-            image_filepath = new_stimulus_data["image_filepath"]
-            image_bytes = load_image_as_bytes(image_path=image_filepath)
+            image_file_path = new_stimulus_data["image_file_path"]
+            image_bytes = load_image_as_bytes(image_path=image_file_path)
             image_bytes = resize_image(image_bytes=image_bytes)
 
             stimulus_start_time = new_stimulus_data["stimulus_start_time"]
             stimulus_end_time = new_stimulus_data["stimulus_end_time"]
             stimulus_duration_s = new_stimulus_data["stimulus_duration_s"]
-            image_filepath = new_stimulus_data["image_filepath"]
+            image_file_path = new_stimulus_data["image_file_path"]
             image_category = new_stimulus_data["image_category"]
             # image_description = new_stimulus_data["image_description"]
 
@@ -213,7 +213,7 @@ def eeg_data_logging(subprocess_params: dict):
             data_to_write[0]["stimulus_start_time"] = stimulus_start_time
             data_to_write[0]["stimulus_end_time"] = stimulus_end_time
             data_to_write[0]["stimulus_duration_s"] = stimulus_duration_s
-            data_to_write[0]["image_filepath"] = image_filepath
+            data_to_write[0]["image_file_path"] = image_file_path
             data_to_write[0]["image_category"] = image_category
             # data_to_write[0]["image_description"] = image_description
             # The image data is stored as a numpy array of bytes (uint8).
