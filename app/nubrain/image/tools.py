@@ -74,7 +74,7 @@ def load_and_scale_image(
                 image_category = file.read()
             image_category = image_category.strip()
         else:
-            image_category = None
+            image_category = "null"  # Needs to be string for saving to hdf5
     except Exception as e:
         print(f"Error loading image metadata {path_txt}: {e}")
         return None
