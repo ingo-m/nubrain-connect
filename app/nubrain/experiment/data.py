@@ -179,54 +179,58 @@ def eeg_data_logging(subprocess_params: dict):
             # --------------------------------------------------------------------------
             # *** Write board data to hdf5 file
 
-            hdf5_board_data = file["board_data"]
+            if new_board_data is not None:
+                hdf5_board_data = file["board_data"]
 
-            # Get the current number of samples in the dataset.
-            n_existing_samples = hdf5_board_data.shape[1]
-            # Get the number of samples in the new batch.
-            n_new_samples = new_board_data.shape[1]
+                # Get the current number of samples in the dataset.
+                n_existing_samples = hdf5_board_data.shape[1]
+                # Get the number of samples in the new batch.
+                n_new_samples = new_board_data.shape[1]
 
-            # Resize the dataset to accommodate the new data.
-            n_total_samples = n_existing_samples + n_new_samples
-            hdf5_board_data.resize(n_total_samples, axis=1)
+                # Resize the dataset to accommodate the new data.
+                n_total_samples = n_existing_samples + n_new_samples
+                hdf5_board_data.resize(n_total_samples, axis=1)
 
-            # Write the new data batch into the newly allocated space.
-            hdf5_board_data[:, n_existing_samples:n_total_samples] = new_board_data
+                # Write the new data batch into the newly allocated space.
+                hdf5_board_data[:, n_existing_samples:n_total_samples] = new_board_data
 
             # --------------------------------------------------------------------------
             # *** Write image data to hdf5 file
 
-            hdf5_stimulus_data = file["stimulus_data"]
+            # It is possible to receive board data without stimulus metadata (e.g. for
+            # inter-stimulus interval).
+            if new_stimulus_data is not None:
+                hdf5_stimulus_data = file["stimulus_data"]
 
-            image_file_path = new_stimulus_data["image_file_path"]
-            image_bytes = load_image_as_bytes(image_path=image_file_path)
-            image_bytes = resize_image(image_bytes=image_bytes)
+                image_file_path = new_stimulus_data["image_file_path"]
+                image_bytes = load_image_as_bytes(image_path=image_file_path)
+                image_bytes = resize_image(image_bytes=image_bytes)
 
-            stimulus_start_time = new_stimulus_data["stimulus_start_time"]
-            stimulus_end_time = new_stimulus_data["stimulus_end_time"]
-            stimulus_duration_s = new_stimulus_data["stimulus_duration_s"]
-            image_file_path = new_stimulus_data["image_file_path"]
-            image_category = new_stimulus_data["image_category"]
-            # image_description = new_stimulus_data["image_description"]
+                stimulus_start_time = new_stimulus_data["stimulus_start_time"]
+                stimulus_end_time = new_stimulus_data["stimulus_end_time"]
+                stimulus_duration_s = new_stimulus_data["stimulus_duration_s"]
+                image_file_path = new_stimulus_data["image_file_path"]
+                image_category = new_stimulus_data["image_category"]
+                # image_description = new_stimulus_data["image_description"]
 
-            data_to_write = np.empty((1,), dtype=stimulus_dtype)
-            data_to_write[0]["stimulus_start_time"] = stimulus_start_time
-            data_to_write[0]["stimulus_end_time"] = stimulus_end_time
-            data_to_write[0]["stimulus_duration_s"] = stimulus_duration_s
-            data_to_write[0]["image_file_path"] = image_file_path
-            data_to_write[0]["image_category"] = image_category
-            # data_to_write[0]["image_description"] = image_description
-            # The image data is stored as a numpy array of bytes (uint8).
-            data_to_write[0]["image_bytes"] = np.frombuffer(
-                image_bytes,
-                dtype=np.uint8,
-            )
+                data_to_write = np.empty((1,), dtype=stimulus_dtype)
+                data_to_write[0]["stimulus_start_time"] = stimulus_start_time
+                data_to_write[0]["stimulus_end_time"] = stimulus_end_time
+                data_to_write[0]["stimulus_duration_s"] = stimulus_duration_s
+                data_to_write[0]["image_file_path"] = image_file_path
+                data_to_write[0]["image_category"] = image_category
+                # data_to_write[0]["image_description"] = image_description
+                # The image data is stored as a numpy array of bytes (uint8).
+                data_to_write[0]["image_bytes"] = np.frombuffer(
+                    image_bytes,
+                    dtype=np.uint8,
+                )
 
-            # Write the structured array to the dataset.
-            hdf5_stimulus_data[stimulus_counter] = data_to_write
+                # Write the structured array to the dataset.
+                hdf5_stimulus_data[stimulus_counter] = data_to_write
 
-        print(f"Stimulus counter: {stimulus_counter}")
-        stimulus_counter += 1
+                print(f"Stimulus counter: {stimulus_counter}")
+                stimulus_counter += 1
 
     # End of data preprocessing process.
 
