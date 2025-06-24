@@ -185,6 +185,9 @@ def experiment(config: dict):
             # Pause for specified number of milliseconds.
             pygame.time.delay(int(round(initial_rest_duration * 1000.0)))
 
+            # Clear board buffer.
+            _ = board.get_board_data()
+
             # Block loop.
             for idx_block in range(n_blocks):
                 print(f"Starting Block {idx_block + 1} out of {n_blocks}")
@@ -201,9 +204,6 @@ def experiment(config: dict):
                     img_rect = current_image.get_rect(
                         center=(screen_width // 2, screen_height // 2)
                     )
-
-                    # Clear board buffer.
-                    _ = board.get_board_data()
 
                     # Display image. Clear previous screen content.
                     screen.fill(global_config.rest_condition_color)
