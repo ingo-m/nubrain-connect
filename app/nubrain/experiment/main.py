@@ -174,19 +174,19 @@ def experiment(config: dict):
             )
 
         try:
-            # 1. Initial grey screen
-            print("Starting initial grey screen...")
+            # Initial grey screen.
             pygame.time.wait(100)
             screen.fill(global_config.rest_condition_color)
             pygame.display.flip()
             pygame.time.wait(100)
             screen.fill(global_config.rest_condition_color)
             pygame.display.flip()
-            # Pause for specified number of milliseconds.
-            pygame.time.delay(int(round(initial_rest_duration * 1000.0)))
 
             # Clear board buffer.
             _ = board.get_board_data()
+
+            # Pause for specified number of milliseconds.
+            pygame.time.delay(int(round(initial_rest_duration * 1000.0)))
 
             # Block loop.
             for idx_block in range(n_blocks):
@@ -215,6 +215,13 @@ def experiment(config: dict):
                     # Insert stimulus start maker into EEG data.
                     board.insert_marker(global_config.stim_start_marker)
 
+                    # Send pre-stimulus board data (to avoid buffer overflow).
+                    data_to_queue = {
+                        "board_data": board.get_board_data(),
+                        "stimulus_data": None,
+                    }
+                    data_logging_queue.put(data_to_queue)
+
                     # Time until when to show stimulus.
                     t2 = t1 + image_duration
                     while time() < t2:
@@ -226,8 +233,7 @@ def experiment(config: dict):
                     board.insert_marker(global_config.stim_end_marker)
                     t3 = time()
 
-                    board_data = board.get_board_data()
-
+                    # Send data corresponding to stimulus period.
                     stimulus_data = {
                         "stimulus_start_time": t1,
                         "stimulus_end_time": t3,
@@ -235,12 +241,10 @@ def experiment(config: dict):
                         "image_file_path": image_file_path,
                         "image_category": image_category,
                     }
-
                     data_to_queue = {
-                        "board_data": board_data,
+                        "board_data": board.get_board_data(),
                         "stimulus_data": stimulus_data,
                     }
-
                     data_logging_queue.put(data_to_queue)
 
                     # Load next image.
@@ -273,19 +277,24 @@ def experiment(config: dict):
                 if not running:
                     break
 
-                # 2. Inter-block grey screen (if not the last block)
-                if idx_block < n_blocks - 1:
-                    print(
-                        f"End of Block {idx_block + 1}. Starting inter-block grey screen..."
-                    )
-                    screen.fill(global_config.rest_condition_color)
-                    pygame.display.flip()
-                    # Pause for specified number of milliseconds.
-                    pygame.time.delay(int(round(inter_block_grey_duration * 1000.0)))
-                else:
-                    print(f"End of Block {idx_block + 1}. Experiment finished.")
+                # Send post-stimulus board data (to avoid buffer overflow).
+                data_to_queue = {
+                    "board_data": board.get_board_data(),
+                    "stimulus_data": None,
+                }
+                data_logging_queue.put(data_to_queue)
 
-            # Final message (optional)
+                # Inter-block grey screen.
+                print(f"End of Block {idx_block + 1}. Starting inter-block interval.")
+                screen.fill(global_config.rest_condition_color)
+                pygame.display.flip()
+                # We already waited for the ISI duration, therefore subtract it from the
+                # inter block duration. Avoid negative value is case ISI duration is
+                # longer than inter block duration.
+                remaining_wait = max((inter_block_grey_duration - isi_duration), 0.0)
+                pygame.time.delay(int(round(remaining_wait * 1000.0)))
+
+            # End of experiment.
             if running:  # Only show if not quit early
                 screen.fill(global_config.rest_condition_color)
                 end_text = font.render("Experiment complete.", True, (0.0, 0.0, 0.0))
@@ -297,6 +306,13 @@ def experiment(config: dict):
                 pygame.time.wait(500)
 
             running = False
+
+            # Send final board data.
+            data_to_queue = {
+                "board_data": board.get_board_data(),
+                "stimulus_data": None,
+            }
+            data_logging_queue.put(data_to_queue)
 
         except Exception as e:
             print(f"An error occurred during the experiment: {e}")
