@@ -7,14 +7,16 @@ output_directory: "/example/path"
 image_directory: "/example/images" # Folder with images to show during the experiment
 
 eeg_channel_mapping:
-  0: "O1" # N1 Cyton pin
-  1: "O2" # N2 Cyton pin
-  2: "P4" # N3 Cyton pin
-  3: "P3" # N4 Cyton pin
-  4: "C4" # N5 Cyton pin
-  5: "C3" # N6 Cyton pin
-  6: "F4" # N7 Cyton pin
-  7: "F3" # N8 Cyton pin
+  # CPz = REF, white cable, SRB Cyton board pin
+  # AFz = GND, black cable, BIAS Cyton board pin
+  0: "O1" # grey cable, N1 Cyton board pin
+  1: "O2" # purple cable, N2 Cyton board pin
+  2: "T3" # blue cable, N3 Cyton board pin
+  3: "T4" # green cable, N4 Cyton board pin
+  4: "T5" # yellow cable, N5 Cyton board pin
+  5: "T6" # orange cable, N6 Cyton board pin
+  6: "F3" # red cable, N7 Cyton board pin
+  7: "F4" # brown cable, N8 Cyton board pin
 
 # Bandstop filter
 bandstop_low_cutoff_freq: 49.0 # Hz
