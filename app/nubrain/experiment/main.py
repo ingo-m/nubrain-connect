@@ -182,11 +182,12 @@ def experiment(config: dict):
             pygame.time.wait(100)
             screen.fill(global_config.rest_condition_color)
             pygame.display.flip()
-            pygame.time.wait(int(round(initial_rest_duration * 100.0)))
+            # Pause for specified number of milliseconds.
+            pygame.time.delay(int(round(initial_rest_duration * 1000.0)))
 
             # Block loop.
-            for block_num in range(n_blocks):
-                print(f"Starting Block {block_num + 1} out of {n_blocks}")
+            for idx_block in range(n_blocks):
+                print(f"Starting Block {idx_block + 1} out of {n_blocks}")
 
                 # Image loop (within a block).
                 for image_count in range(images_per_block):
@@ -273,16 +274,16 @@ def experiment(config: dict):
                     break
 
                 # 2. Inter-block grey screen (if not the last block)
-                if block_num < n_blocks - 1:
+                if idx_block < n_blocks - 1:
                     print(
-                        f"End of Block {block_num + 1}. Starting inter-block grey screen..."
+                        f"End of Block {idx_block + 1}. Starting inter-block grey screen..."
                     )
                     screen.fill(global_config.rest_condition_color)
                     pygame.display.flip()
-                    # sleep(inter_block_grey_duration)
-                    pygame.time.wait(int(round(inter_block_grey_duration * 100.0)))
+                    # Pause for specified number of milliseconds.
+                    pygame.time.delay(int(round(inter_block_grey_duration * 1000.0)))
                 else:
-                    print(f"End of Block {block_num + 1}. Experiment finished.")
+                    print(f"End of Block {idx_block + 1}. Experiment finished.")
 
             # Final message (optional)
             if running:  # Only show if not quit early
