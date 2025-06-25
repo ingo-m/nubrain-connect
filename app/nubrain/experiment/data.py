@@ -21,6 +21,9 @@ def eeg_data_logging(subprocess_params: dict):
     demo_mode = subprocess_params["demo_mode"]
     image_directory = subprocess_params["image_directory"]
 
+    subject_id = subprocess_params["subject_id"]
+    session_id = subprocess_params["session_id"]
+
     # EEG parameters
     eeg_board_description = subprocess_params["eeg_board_description"]
     eeg_sampling_rate = subprocess_params["eeg_sampling_rate"]
@@ -61,6 +64,8 @@ def eeg_data_logging(subprocess_params: dict):
     experiment_metadata = {
         "config_version": global_config.config_version,
         "demo_mode": demo_mode,
+        "subject_id": subject_id,
+        "session_id": session_id,
         "image_directory": image_directory,
         "rest_condition_color": global_config.rest_condition_color,
         "stim_start_marker": global_config.stim_start_marker,

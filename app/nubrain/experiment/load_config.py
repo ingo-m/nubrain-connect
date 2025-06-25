@@ -19,6 +19,10 @@ class EegExperimentConfig:
     """
 
     demo_mode: bool
+
+    subject_id: str
+    session_id: str
+
     output_directory: str
     image_directory: str  # Folder with images to show during the experiment
 
