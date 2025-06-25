@@ -79,6 +79,16 @@ def experiment(config: dict):
     board = BoardShim(board_id, params)
 
     eeg_board_description = BoardShim.get_board_descr(board_id)
+
+    # Replace (wrong) default channel names from Cyton board description with channel
+    # mapping from config.
+    eeg_channel_idxs = sorted([int(x) for x in list(eeg_channel_mapping.keys())])
+    eeg_channel_names = []
+    for eeg_channel_idx in eeg_channel_idxs:
+        eeg_channel_names.append(eeg_channel_mapping[str(eeg_channel_idx)])
+    # For example: 'O1,O2,T3,T4,T5,T6,F3,F4'
+    eeg_board_description["eeg_names"] = ",".join(eeg_channel_names)
+
     eeg_sampling_rate = int(eeg_board_description["sampling_rate"])
     eeg_channels = eeg_board_description["eeg_channels"]  # Get EEG channel indices
     marker_channel = eeg_board_description["marker_channel"]
