@@ -1,7 +1,10 @@
 # nubrain_endpoint: "http://platform.nubrain.io/api/v1/collect"
 # nubrain_api_key: "abc012"
 
-demo_mode: True
+demo_mode: False
+
+subject_id: "sub-001"
+session_id: "session-001"
 
 output_directory: "/example/path"
 image_directory: "/example/images" # Folder with images to show during the experiment

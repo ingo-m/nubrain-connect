@@ -18,6 +18,9 @@ def experiment(config: dict):
 
     demo_mode = config["demo_mode"]
 
+    subject_id = config["subject_id"]
+    session_id = config["session_id"]
+
     output_directory = config["output_directory"]
     image_directory = config["image_directory"]
 
@@ -104,6 +107,8 @@ def experiment(config: dict):
     sleep(0.1)
     board_data = board.get_board_data()
 
+    print(f"Board data dtype: {board_data.dtype}")
+
     # Total number of channels, including EEG, marker, and other channels.
     n_channels_total = board_data.shape[0]
 
@@ -114,6 +119,8 @@ def experiment(config: dict):
 
     subprocess_params = {
         "demo_mode": demo_mode,
+        "subject_id": subject_id,
+        "session_id": session_id,
         "image_directory": image_directory,
         # EEG parameters
         "eeg_board_description": eeg_board_description,
