@@ -85,10 +85,10 @@ def experiment(config: dict):
 
     # Replace (wrong) default channel names from Cyton board description with channel
     # mapping from config.
-    eeg_channel_idxs = sorted([int(x) for x in list(eeg_channel_mapping.keys())])
+    eeg_channel_idxs = sorted([x for x in list(eeg_channel_mapping.keys())])
     eeg_channel_names = []
     for eeg_channel_idx in eeg_channel_idxs:
-        eeg_channel_names.append(eeg_channel_mapping[str(eeg_channel_idx)])
+        eeg_channel_names.append(eeg_channel_mapping[eeg_channel_idx])
     # For example: 'O1,O2,T3,T4,T5,T6,F3,F4'
     eeg_board_description["eeg_names"] = ",".join(eeg_channel_names)
 
