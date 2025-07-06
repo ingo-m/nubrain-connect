@@ -35,6 +35,7 @@ bandpass_filter_order: 4
 initial_rest_duration: 3.0
 image_duration: 1.0
 isi_duration: 0.5
+isi_jitter: 0.1 # Random jitter up to x seconds added to ISI
 inter_block_grey_duration: 2.0
 
 n_blocks: 3

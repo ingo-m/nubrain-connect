@@ -3,6 +3,7 @@ import os
 import random
 from time import sleep, time
 
+import numpy as np
 import pygame
 from brainflow.board_shim import BoardIds, BoardShim, BrainFlowInputParams
 
@@ -37,6 +38,7 @@ def experiment(config: dict):
     initial_rest_duration = config["initial_rest_duration"]
     image_duration = config["image_duration"]
     isi_duration = config["isi_duration"]
+    isi_jitter = config["isi_jitter"]
     inter_block_grey_duration = config["inter_block_grey_duration"]
 
     n_blocks = config["n_blocks"]
@@ -247,8 +249,8 @@ def experiment(config: dict):
                     # End of stimulus presentation. Display ISI grey screen.
                     screen.fill(global_config.rest_condition_color)
                     pygame.display.flip()
-                    board.insert_marker(global_config.stim_end_marker)
                     t3 = time()
+                    board.insert_marker(global_config.stim_end_marker)
 
                     # Send data corresponding to stimulus period.
                     stimulus_data = {
@@ -276,7 +278,7 @@ def experiment(config: dict):
                         )
 
                     # Time until when to show grey screen.
-                    t4 = t3 + isi_duration
+                    t4 = t3 + isi_duration + np.random.uniform(low=0.0, high=isi_jitter)
                     while time() < t4:
                         pass
 
