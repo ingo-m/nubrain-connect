@@ -43,13 +43,7 @@ def eeg_data_logging(subprocess_params: dict):
     n_blocks = subprocess_params["n_blocks"]
     images_per_block = subprocess_params["images_per_block"]
 
-    # Filter parameters
-    # bandstop_low_cutoff_freq = subprocess_params["bandstop_low_cutoff_freq"]
-    # bandstop_high_cutoff_freq = subprocess_params["bandstop_high_cutoff_freq"]
-    # bandstop_filter_order = subprocess_params["bandstop_filter_order"]
-    # bandpass_low_cutoff_freq = subprocess_params["bandpass_low_cutoff_freq"]
-    # bandpass_high_cutoff_freq = subprocess_params["bandpass_high_cutoff_freq"]
-    # bandpass_filter_order = subprocess_params["bandpass_filter_order"]
+    utility_frequency = subprocess_params["utility_frequency"]
 
     # nubrain_endpoint = subprocess_params["nubrain_endpoint"]
     # nubrain_api_key = subprocess_params["nubrain_api_key"]
@@ -89,13 +83,8 @@ def eeg_data_logging(subprocess_params: dict):
         # Experiment structure
         "n_blocks": n_blocks,
         "images_per_block": images_per_block,
-        # Filter parameters
-        # "bandstop_low_cutoff_freq": bandstop_low_cutoff_freq,
-        # "bandstop_high_cutoff_freq": bandstop_high_cutoff_freq,
-        # "bandstop_filter_order": bandstop_filter_order,
-        # "bandpass_low_cutoff_freq": bandpass_low_cutoff_freq,
-        # "bandpass_high_cutoff_freq": bandpass_high_cutoff_freq,
-        # "bandpass_filter_order": bandpass_filter_order,
+        # Misc
+        "utility_frequency": utility_frequency,
     }
 
     print(f"Initializing HDF5 file at: {path_out_data}")

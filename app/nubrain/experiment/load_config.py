@@ -26,13 +26,7 @@ class EegExperimentConfig:
     output_directory: str
     image_directory: str  # Folder with images to show during the experiment
 
-    # Filter parameters
-    bandstop_low_cutoff_freq: float
-    bandstop_high_cutoff_freq: float
-    bandstop_filter_order: int
-    bandpass_low_cutoff_freq: float
-    bandpass_high_cutoff_freq: float
-    bandpass_filter_order: int
+    utility_frequency: float
 
     # Timing parameters
     initial_rest_duration: float
@@ -70,16 +64,6 @@ class EegExperimentConfig:
                     f"Invalid type for '{f.name}'. "
                     f"Expected {check_type.__name__}, but got {type(value).__name__}."
                 )
-
-        if self.bandstop_low_cutoff_freq >= self.bandstop_high_cutoff_freq:
-            raise ValueError(
-                "bandstop_low_cutoff_freq must be less than bandstop_high_cutoff_freq"
-            )
-
-        if self.bandpass_low_cutoff_freq >= self.bandpass_high_cutoff_freq:
-            raise ValueError(
-                "bandpass_low_cutoff_freq must be less than bandpass_high_cutoff_freq"
-            )
 
         # The loop above checked that `eeg_channel_mapping` is a dict. Now we check the
         # contents of the dict.

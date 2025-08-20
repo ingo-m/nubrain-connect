@@ -27,13 +27,7 @@ def experiment(config: dict):
 
     eeg_channel_mapping = config["eeg_channel_mapping"]
 
-    # bandstop_low_cutoff_freq = config["bandstop_low_cutoff_freq"]
-    # bandstop_high_cutoff_freq = config["bandstop_high_cutoff_freq"]
-    # bandstop_filter_order = config["bandstop_filter_order"]
-
-    # bandpass_low_cutoff_freq = config["bandpass_low_cutoff_freq"]
-    # bandpass_high_cutoff_freq = config["bandpass_high_cutoff_freq"]
-    # bandpass_filter_order = config["bandpass_filter_order"]
+    utility_frequency = config["utility_frequency"]
 
     initial_rest_duration = config["initial_rest_duration"]
     image_duration = config["image_duration"]
@@ -140,14 +134,8 @@ def experiment(config: dict):
         # Experiment structure
         "n_blocks": n_blocks,
         "images_per_block": images_per_block,
-        # Filter parameters
-        # "bandstop_low_cutoff_freq": bandstop_low_cutoff_freq,
-        # "bandstop_high_cutoff_freq": bandstop_high_cutoff_freq,
-        # "bandstop_filter_order": bandstop_filter_order,
-        # "bandpass_low_cutoff_freq": bandpass_low_cutoff_freq,
-        # "bandpass_high_cutoff_freq": bandpass_high_cutoff_freq,
-        # "bandpass_filter_order": bandpass_filter_order,
         # Misc
+        "utility_frequency": utility_frequency,
         # "nubrain_endpoint": nubrain_endpoint,
         # "nubrain_api_key": nubrain_api_key,
         "path_out_data": path_out_data,
