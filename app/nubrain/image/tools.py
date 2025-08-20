@@ -45,11 +45,13 @@ def load_and_scale_image(
         image = pygame.image.load(image_file_path)
         img_rect = image.get_rect()
 
-        if (screen_width < img_rect.width) or (screen_height < img_rect.height):
+        if ((screen_width * 0.5) < img_rect.width) or (
+            (screen_height * 0.5) < img_rect.height
+        ):
             # The image is larger than the screen. Scale it to fit the screen while
             # maintaining the aspect ratio.
-            scale_w = screen_width / img_rect.width
-            scale_h = screen_height / img_rect.height
+            scale_w = screen_width * 0.5 / img_rect.width
+            scale_h = screen_height * 0.5 / img_rect.height
             scale = min(scale_w, scale_h)
 
             new_width = int(img_rect.width * scale)
