@@ -21,15 +21,7 @@ eeg_channel_mapping:
   6: "F3" # red cable, N7 Cyton board pin
   7: "F4" # brown cable, N8 Cyton board pin
 
-# Bandstop filter
-bandstop_low_cutoff_freq: 49.0 # Hz
-bandstop_high_cutoff_freq: 51.0 # Hz
-bandstop_filter_order: 4
-
-# Bandpass filter
-bandpass_low_cutoff_freq: 5.0 # 55.0  # Hz
-bandpass_high_cutoff_freq: 95.0 # Hz
-bandpass_filter_order: 4
+utility_frequency: 60.0 # Hz
 
 # Condition durations in seconds:
 initial_rest_duration: 3.0
