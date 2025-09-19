@@ -1,6 +1,6 @@
 [project]
 name = "nubrain"
-version = "0.0.23"
+version = "0.1.1"
 description = "NuBrain connect"
 authors = [{ name = "nuBrain Team", email = "hello@nubrain.io" }]
 requires-python = ">=3.10"
@@ -14,10 +14,10 @@ dependencies = [
     "numpy>=2.2.6",
     "pillow>=11.2.1",
     "pygame>=2.6.1",
+    "pylsl>=1.17.6",
     "PyYAML",
     "requests>=2.32.3",
     "scipy>=1.15.3",
-    # "setuptools>=80.9.0",        # Needed?
     "urllib3>=2.4.0",
 ]
 license = "MIT"

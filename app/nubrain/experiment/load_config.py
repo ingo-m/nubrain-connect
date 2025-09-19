@@ -20,11 +20,14 @@ class EegExperimentConfig:
 
     demo_mode: bool
 
+    device_type: str = "cyton"  # New field with default
+    lsl_stream_name: str = "DSI-24"  # New field with default
+
     subject_id: str
     session_id: str
 
     output_directory: str
-    image_directory: str  # Folder with images to show during the experiment
+    image_directory: str
 
     utility_frequency: float
 
@@ -39,10 +42,9 @@ class EegExperimentConfig:
     n_blocks: int
     images_per_block: int
 
-    eeg_device_address: str
+    eeg_device_address: str = ""  # Make optional with default
 
-    # Use default_factory for mutable types like dict to avoid them being shared across
-    # all instances of the class.
+    # Use default_factory for mutable types
     eeg_channel_mapping: Dict[int, str] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -72,6 +74,13 @@ class EegExperimentConfig:
 
         if not all(isinstance(v, str) for v in self.eeg_channel_mapping.values()):
             raise TypeError("All values in 'eeg_channel_mapping' must be strings.")
+
+        # Validate device_type.
+        valid_devices = ["cyton", "dsi24", "synthetic"]
+        if self.device_type not in valid_devices:
+            raise ValueError(
+                f"device_type must be one of {valid_devices}, got {self.device_type}"
+            )
 
         print("Configuration successfully loaded and validated.")
 

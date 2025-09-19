@@ -5,12 +5,14 @@ from time import sleep, time
 
 import numpy as np
 import pygame
-from brainflow.board_shim import BoardIds, BoardShim, BrainFlowInputParams
 
+from nubrain.eeg.device_interface import create_eeg_device
 from nubrain.experiment.data import eeg_data_logging
 from nubrain.experiment.global_config import GlobalConfig
 from nubrain.image.tools import get_all_image_paths, load_and_scale_image
 from nubrain.misc.datetime import get_formatted_current_datetime
+
+mp.set_start_method("spawn", force=True)  # Necessary on if running on windows?
 
 
 def experiment(config: dict):
@@ -18,6 +20,8 @@ def experiment(config: dict):
     # *** Get config
 
     demo_mode = config["demo_mode"]
+    device_type = config.get("device_type", "cyton")  # New config option
+    lsl_stream_name = config.get("lsl_stream_name", "DSI-24")  # New config option
 
     subject_id = config["subject_id"]
     session_id = config["session_id"]
@@ -38,7 +42,7 @@ def experiment(config: dict):
     n_blocks = config["n_blocks"]
     images_per_block = config["images_per_block"]
 
-    eeg_device_address = config["eeg_device_address"]
+    eeg_device_address = config.get("eeg_device_address", "")
 
     global_config = GlobalConfig()
 
@@ -52,7 +56,7 @@ def experiment(config: dict):
     path_out_data = os.path.join(output_directory, f"eeg_session_{current_datetime}.h5")
 
     if os.path.isfile(path_out_data):
-        raise AssertionError(f"Target file aready exists: {path_out_data}")
+        raise AssertionError(f"Target file already exists: {path_out_data}")
 
     # ----------------------------------------------------------------------------------
     # *** Get image paths
@@ -66,47 +70,49 @@ def experiment(config: dict):
     # ----------------------------------------------------------------------------------
     # *** Prepare EEG measurement
 
-    BoardShim.enable_dev_board_logger()
-
+    # Determine device type
     if demo_mode:
-        board_id = BoardIds.SYNTHETIC_BOARD.value
+        actual_device_type = "synthetic"
     else:
-        board_id = BoardIds.CYTON_BOARD.value
+        actual_device_type = device_type
 
-    params = BrainFlowInputParams()
-    params.serial_port = eeg_device_address
-    board = BoardShim(board_id, params)
+    # Create EEG device
+    print(f"Initializing EEG device: {actual_device_type}")
 
-    eeg_board_description = BoardShim.get_board_descr(board_id)
+    device_kwargs = {
+        "eeg_channel_mapping": eeg_channel_mapping,
+    }
 
-    # Replace (wrong) default channel names from Cyton board description with channel
-    # mapping from config.
-    eeg_channel_idxs = sorted([x for x in list(eeg_channel_mapping.keys())])
-    eeg_channel_names = []
-    for eeg_channel_idx in eeg_channel_idxs:
-        eeg_channel_names.append(eeg_channel_mapping[eeg_channel_idx])
-    # For example: 'O1,O2,T3,T4,T5,T6,F3,F4'
-    eeg_board_description["eeg_names"] = ",".join(eeg_channel_names)
+    if actual_device_type == "cyton":
+        device_kwargs["eeg_device_address"] = eeg_device_address
+    elif actual_device_type == "dsi24":
+        device_kwargs["lsl_stream_name"] = lsl_stream_name
 
-    eeg_sampling_rate = int(eeg_board_description["sampling_rate"])
-    eeg_channels = eeg_board_description["eeg_channels"]  # Get EEG channel indices
-    marker_channel = eeg_board_description["marker_channel"]
+    eeg_device = create_eeg_device(actual_device_type, **device_kwargs)
 
-    board.prepare_session()
+    # Prepare session
+    eeg_device.prepare_session()
+
+    # Get device info
+    device_info = eeg_device.get_device_info()
+    eeg_board_description = device_info["board_description"]
+    eeg_sampling_rate = device_info["sampling_rate"]
+    eeg_channels = device_info["eeg_channels"]
+    marker_channel = device_info["marker_channel"]
+    n_channels_total = device_info["n_channels_total"]
 
     print(f"Board: {eeg_board_description['name']}")
     print(f"Sampling Rate: {eeg_sampling_rate} Hz")
     print(f"EEG Channels: {eeg_channels}")
+    print(f"Marker Channel: {marker_channel}")
 
-    board.start_stream()
+    eeg_device.start_stream()
 
     sleep(0.1)
-    board_data = board.get_board_data()
+    board_data = eeg_device.get_board_data()
 
     print(f"Board data dtype: {board_data.dtype}")
-
-    # Total number of channels, including EEG, marker, and other channels.
-    n_channels_total = board_data.shape[0]
+    print(f"Board data shape: {board_data.shape}")
 
     # ----------------------------------------------------------------------------------
     # *** Start data logging subprocess
@@ -115,6 +121,7 @@ def experiment(config: dict):
 
     subprocess_params = {
         "demo_mode": demo_mode,
+        "device_type": actual_device_type,
         "subject_id": subject_id,
         "session_id": session_id,
         "image_directory": image_directory,
@@ -136,8 +143,6 @@ def experiment(config: dict):
         "images_per_block": images_per_block,
         # Misc
         "utility_frequency": utility_frequency,
-        # "nubrain_endpoint": nubrain_endpoint,
-        # "nubrain_api_key": nubrain_api_key,
         "path_out_data": path_out_data,
         "data_logging_queue": data_logging_queue,
     }
@@ -147,7 +152,9 @@ def experiment(config: dict):
         args=(subprocess_params,),
     )
 
-    logging_process.Daemon = True
+    logging_process.daemon = (
+        True  # Use lowercase 'daemon' for cross-platform compatibility
+    )
     logging_process.start()
 
     # ----------------------------------------------------------------------------------
@@ -190,7 +197,7 @@ def experiment(config: dict):
             pygame.display.flip()
 
             # Clear board buffer.
-            _ = board.get_board_data()
+            _ = eeg_device.get_board_data()
 
             # Pause for specified number of milliseconds.
             pygame.time.delay(int(round(initial_rest_duration * 1000.0)))
@@ -219,12 +226,12 @@ def experiment(config: dict):
 
                     # Start of stimulus presentation.
                     t1 = time()
-                    # Insert stimulus start maker into EEG data.
-                    board.insert_marker(global_config.stim_start_marker)
+                    # Insert stimulus start marker into EEG data.
+                    eeg_device.insert_marker(global_config.stim_start_marker)
 
                     # Send pre-stimulus board data (to avoid buffer overflow).
                     data_to_queue = {
-                        "board_data": board.get_board_data(),
+                        "board_data": eeg_device.get_board_data(),
                         "stimulus_data": None,
                     }
                     data_logging_queue.put(data_to_queue)
@@ -238,7 +245,7 @@ def experiment(config: dict):
                     screen.fill(global_config.rest_condition_color)
                     pygame.display.flip()
                     t3 = time()
-                    board.insert_marker(global_config.stim_end_marker)
+                    eeg_device.insert_marker(global_config.stim_end_marker)
 
                     # Send data corresponding to stimulus period.
                     stimulus_data = {
@@ -249,7 +256,7 @@ def experiment(config: dict):
                         "image_category": image_category,
                     }
                     data_to_queue = {
-                        "board_data": board.get_board_data(),
+                        "board_data": eeg_device.get_board_data(),
                         "stimulus_data": stimulus_data,
                     }
                     data_logging_queue.put(data_to_queue)
@@ -286,7 +293,7 @@ def experiment(config: dict):
 
                 # Send post-stimulus board data (to avoid buffer overflow).
                 data_to_queue = {
-                    "board_data": board.get_board_data(),
+                    "board_data": eeg_device.get_board_data(),
                     "stimulus_data": None,
                 }
                 data_logging_queue.put(data_to_queue)
@@ -296,7 +303,7 @@ def experiment(config: dict):
                 screen.fill(global_config.rest_condition_color)
                 pygame.display.flip()
                 # We already waited for the ISI duration, therefore subtract it from the
-                # inter block duration. Avoid negative value is case ISI duration is
+                # inter block duration. Avoid negative value in case ISI duration is
                 # longer than inter block duration.
                 remaining_wait = max((inter_block_grey_duration - isi_duration), 0.0)
                 pygame.time.delay(int(round(remaining_wait * 1000.0)))
@@ -316,7 +323,7 @@ def experiment(config: dict):
 
             # Send final board data.
             data_to_queue = {
-                "board_data": board.get_board_data(),
+                "board_data": eeg_device.get_board_data(),
                 "stimulus_data": None,
             }
             data_logging_queue.put(data_to_queue)
@@ -328,8 +335,8 @@ def experiment(config: dict):
             pygame.quit()
             print("Experiment closed.")
 
-    board.stop_stream()
-    board.release_session()
+    eeg_device.stop_stream()
+    eeg_device.release_session()
 
     # Join process for sending data.
     print("Join process for sending data")

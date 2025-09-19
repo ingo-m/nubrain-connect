@@ -1,36 +1,63 @@
-# nubrain_endpoint: "http://platform.nubrain.io/api/v1/collect"
-# nubrain_api_key: "abc012"
+# Device configuration
+device_type: "dsi24" # Options: "cyton", "dsi24", "synthetic"
+lsl_stream_name: "DSI-24" # LSL stream name from DSI-Streamer
 
 demo_mode: False
+
+utility_frequency: 60.0 # Hz
 
 subject_id: "sub-001"
 session_id: "session-001"
 
-output_directory: "/example/path"
-image_directory: "/example/images" # Folder with images to show during the experiment
+# Use Windows-style paths
+output_directory: "C:\\experiments\\output"
+image_directory: "C:\\experiments\\images"
 
+# 8 Channel Cyton montage.
+# eeg_channel_mapping:
+#   # CPz = REF, white cable, SRB Cyton board pin
+#   # AFz = GND, black cable, BIAS Cyton board pin
+#   0: "O1" # grey cable, N1 Cyton board pin
+#   1: "O2" # purple cable, N2 Cyton board pin
+#   2: "T3" # blue cable, N3 Cyton board pin
+#   3: "T4" # green cable, N4 Cyton board pin
+#   4: "T5" # yellow cable, N5 Cyton board pin
+#   5: "T6" # orange cable, N6 Cyton board pin
+#   6: "F3" # red cable, N7 Cyton board pin
+#   7: "F4" # brown cable, N8 Cyton board pin
+
+# DSI-24 channel mapping. TODO: Verify DSI-24 montage.
 eeg_channel_mapping:
-  # CPz = REF, white cable, SRB Cyton board pin
-  # AFz = GND, black cable, BIAS Cyton board pin
-  0: "O1" # grey cable, N1 Cyton board pin
-  1: "O2" # purple cable, N2 Cyton board pin
-  2: "T3" # blue cable, N3 Cyton board pin
-  3: "T4" # green cable, N4 Cyton board pin
-  4: "T5" # yellow cable, N5 Cyton board pin
-  5: "T6" # orange cable, N6 Cyton board pin
-  6: "F3" # red cable, N7 Cyton board pin
-  7: "F4" # brown cable, N8 Cyton board pin
-
-utility_frequency: 60.0 # Hz
+  0: "Fp1"
+  1: "Fp2"
+  2: "F3"
+  3: "F4"
+  4: "C3"
+  5: "C4"
+  6: "P3"
+  7: "P4"
+  8: "O1"
+  9: "O2"
+  10: "F7"
+  11: "F8"
+  12: "T3"
+  13: "T4"
+  14: "T5"
+  15: "T6"
+  16: "Fz"
+  17: "Cz"
+  18: "Pz"
 
 # Condition durations in seconds:
-initial_rest_duration: 3.0
+initial_rest_duration: 5.0
 image_duration: 1.0
 isi_duration: 0.5
 isi_jitter: 0.1 # Random jitter up to x seconds added to ISI
-inter_block_grey_duration: 2.0
+inter_block_grey_duration: 5.0
 
-n_blocks: 3
-images_per_block: 3
+n_blocks: 3 # 20
+images_per_block: 3 # 20
 
-eeg_device_address: "/dev/ttyUSB0"
+# Not needed for DSI-24 but kept for compatibility with OpenBCI Cyton device.
+# eeg_device_address: "/dev/ttyUSB0"  # <-- When using Cyton on Ubuntu
+eeg_device_address: ""
