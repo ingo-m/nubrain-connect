@@ -12,8 +12,8 @@ global_config = GlobalConfig()
 
 def eeg_data_logging(subprocess_params: dict):
     """
-    Log experimental data. For now, save to local hdf file. TODO: Send to remote
-    backend. To be run in separate process (using multiprocessing).
+    Log experimental data. Save to local hdf file. To be run in separate process (using
+    multiprocessing).
     """
     # ----------------------------------------------------------------------------------
     # *** Get parameters
@@ -227,5 +227,3 @@ def eeg_data_logging(subprocess_params: dict):
                 stimulus_counter += 1
 
     # End of data preprocessing process.
-
-    # TODO: Send data to cloud storage.
