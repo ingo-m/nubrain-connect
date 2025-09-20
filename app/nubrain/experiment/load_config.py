@@ -18,8 +18,6 @@ class EegExperimentConfig:
     runtime.
     """
 
-    demo_mode: bool
-
     subject_id: str
     session_id: str
 
@@ -81,6 +79,9 @@ class EegExperimentConfig:
             raise ValueError(
                 f"device_type must be one of {valid_devices}, got {self.device_type}"
             )
+
+        if self.device_type == "synthetic":
+            print("WARNING: USING SYNTHETIC DEVICE (DEMO MODE)")
 
         print("Configuration successfully loaded and validated.")
 
