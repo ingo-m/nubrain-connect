@@ -2,8 +2,6 @@
 device_type: "dsi24" # Options: "cyton", "dsi24", "synthetic"
 lsl_stream_name: "DSI-24" # LSL stream name from DSI-Streamer
 
-demo_mode: False
-
 utility_frequency: 60.0 # Hz
 
 subject_id: "sub-001"

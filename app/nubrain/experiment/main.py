@@ -19,8 +19,7 @@ def experiment(config: dict):
     # ----------------------------------------------------------------------------------
     # *** Get config
 
-    demo_mode = config["demo_mode"]
-    device_type = config.get("device_type", "cyton")  # New config option
+    device_type = config["device_type"]
     lsl_stream_name = config.get("lsl_stream_name", "DSI-24")  # New config option
 
     subject_id = config["subject_id"]
@@ -70,28 +69,29 @@ def experiment(config: dict):
     # ----------------------------------------------------------------------------------
     # *** Prepare EEG measurement
 
-    # Determine device type
-    if demo_mode:
-        actual_device_type = "synthetic"
-    else:
-        actual_device_type = device_type
-
     # Create EEG device
-    print(f"Initializing EEG device: {actual_device_type}")
+    print(f"Initializing EEG device: {device_type}")
 
     device_kwargs = {
         "eeg_channel_mapping": eeg_channel_mapping,
     }
 
-    if actual_device_type == "cyton":
+    if device_type in ["cyton", "synthetic"]:
         device_kwargs["eeg_device_address"] = eeg_device_address
-    elif actual_device_type == "dsi24":
+    elif device_type == "dsi24":
         device_kwargs["lsl_stream_name"] = lsl_stream_name
+    else:
+        raise ValueError(f"Unexpected `device_type`: {device_type}")
 
-    eeg_device = create_eeg_device(actual_device_type, **device_kwargs)
+    eeg_device = create_eeg_device(device_type, **device_kwargs)
 
     # Prepare session
     eeg_device.prepare_session()
+
+    # Need to start the stream before calling `eeg_device.get_device_info()`, because
+    # we retrieve data from board to determine data shape (number of channels).
+    eeg_device.start_stream()
+    sleep(0.1)
 
     # Get device info
     device_info = eeg_device.get_device_info()
@@ -106,9 +106,6 @@ def experiment(config: dict):
     print(f"EEG Channels: {eeg_channels}")
     print(f"Marker Channel: {marker_channel}")
 
-    eeg_device.start_stream()
-
-    sleep(0.1)
     board_data = eeg_device.get_board_data()
 
     print(f"Board data dtype: {board_data.dtype}")
@@ -120,8 +117,7 @@ def experiment(config: dict):
     data_logging_queue = mp.Queue()
 
     subprocess_params = {
-        "demo_mode": demo_mode,
-        "device_type": actual_device_type,
+        "device_type": device_type,
         "subject_id": subject_id,
         "session_id": session_id,
         "image_directory": image_directory,
