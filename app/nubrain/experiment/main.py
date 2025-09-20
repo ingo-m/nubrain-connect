@@ -6,7 +6,7 @@ from time import sleep, time
 import numpy as np
 import pygame
 
-from nubrain.eeg.device_interface import create_eeg_device
+from nubrain.device.device_interface import create_eeg_device
 from nubrain.experiment.data import eeg_data_logging
 from nubrain.experiment.global_config import GlobalConfig
 from nubrain.image.tools import get_all_image_paths, load_and_scale_image

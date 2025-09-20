@@ -20,9 +20,6 @@ class EegExperimentConfig:
 
     demo_mode: bool
 
-    device_type: str = "cyton"  # New field with default
-    lsl_stream_name: str = "DSI-24"  # New field with default
-
     subject_id: str
     session_id: str
 
@@ -41,6 +38,9 @@ class EegExperimentConfig:
     # Experiment structure
     n_blocks: int
     images_per_block: int
+
+    device_type: str
+    lsl_stream_name: str
 
     eeg_device_address: str = ""  # Make optional with default
 
