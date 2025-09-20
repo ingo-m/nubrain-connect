@@ -83,14 +83,21 @@ class BrainFlowDevice(EEGDeviceInterface):
         self.board.release_session()
 
     def get_device_info(self) -> Dict:
+        # Get actual board data to determine total channels.
+        test_data = self.board.get_board_data()
+        if test_data.size > 0:
+            n_channels_total = test_data.shape[0]
+        else:
+            n_channels_total = (
+                len(self.board_description["eeg_channels"]) + 1
+            )  # +1 for marker
+
         return {
             "board_description": self.board_description,
             "sampling_rate": int(self.board_description["sampling_rate"]),
             "eeg_channels": self.board_description["eeg_channels"],
             "marker_channel": self.board_description["marker_channel"],
-            "n_channels_total": len(self.board_description["eeg_channels"])
-            + len(self.board_description["other_channels"])
-            + 1,  # +1 for marker
+            "n_channels_total": n_channels_total,
         }
 
 
@@ -264,7 +271,6 @@ class DSI24Device(EEGDeviceInterface):
             "sampling_rate": self.sampling_rate,
             "eeg_channels": eeg_channels,
             "eeg_names": channel_names_str,
-            "other_channels": [],
             "marker_channel": self.n_channels,  # Last channel is marker
         }
 
