@@ -8,8 +8,8 @@ from abc import ABC, abstractmethod
 from typing import Dict
 
 import numpy as np
-import pylsl
 from brainflow.board_shim import BoardIds, BoardShim, BrainFlowInputParams
+from pylsl import StreamInfo, StreamInlet, StreamOutlet, resolve_byprop
 
 
 class EEGDeviceInterface(ABC):
@@ -116,37 +116,44 @@ class DSI24Device(EEGDeviceInterface):
 
         self.inlet = None
         self.marker_outlet = None
+        self.marker_inlet = None  # We'll also create an inlet to read our own markers
         self.sampling_rate = None
         self.n_channels = None
         self.channel_names = []
         self.data_buffer = []
+        self.timestamp_buffer = []
         self.marker_buffer = []
-        self.last_timestamp = 0
+        self.marker_timestamp_buffer = []
 
     def prepare_session(self):
         """Connect to LSL streams from DSI-Streamer."""
         print(f"Looking for LSL stream: {self.stream_name}")
 
         # Find EEG data stream.
-        streams = pylsl.resolve_stream("name", self.stream_name, timeout=10.0)
+        streams = resolve_byprop("name", self.stream_name, minimum=1, timeout=10.0)
+
         if not streams:
             raise RuntimeError(
                 f"Cannot find LSL stream named '{self.stream_name}'. "
-                "Make sure DSI-Streamer is running."
+                "Make sure DSI-Streamer is running and streaming data."
             )
 
         # Create inlet for receiving data.
-        self.inlet = pylsl.StreamInlet(streams[0], max_buflen=300)
+        self.inlet = StreamInlet(streams[0], max_buflen=30)
 
         # Get stream info.
         info = self.inlet.info()
         self.sampling_rate = info.nominal_srate()
         self.n_channels = info.channel_count()
 
-        # Get channel names.
+        # Get channel names from the stream info.
         ch = info.desc().child("channels").child("channel")
         for _ in range(self.n_channels):
-            self.channel_names.append(ch.child_value("label"))
+            label = ch.child_value("label")
+            if label:
+                self.channel_names.append(label)
+            else:
+                self.channel_names.append(f"Ch{len(self.channel_names)}")
             ch = ch.next_sibling()
 
         print("Connected to DSI-24 stream:")
@@ -154,8 +161,8 @@ class DSI24Device(EEGDeviceInterface):
         print(f"  Channels: {self.n_channels}")
         print(f"  Channel names: {self.channel_names}")
 
-        # Create marker outlet for sending markers.
-        marker_info = pylsl.StreamInfo(
+        # Create marker outlet for sending markers
+        marker_info = StreamInfo(
             self.marker_stream_name,
             "Markers",
             1,  # 1 channel for markers
@@ -163,26 +170,46 @@ class DSI24Device(EEGDeviceInterface):
             "float32",
             "DSI24_Markers_" + str(time.time()),
         )
-        self.marker_outlet = pylsl.StreamOutlet(marker_info)
+        self.marker_outlet = StreamOutlet(marker_info)
+
+        # Also create a marker inlet to read our own markers (for synchronization)
+        # Give it a moment to be discoverable
+        time.sleep(0.5)
+        marker_streams = resolve_byprop(
+            "name", self.marker_stream_name, minimum=1, timeout=5.0
+        )
+        if marker_streams:
+            self.marker_inlet = StreamInlet(marker_streams[0])
 
         # Initialize buffers
         self.data_buffer = []
+        self.timestamp_buffer = []
         self.marker_buffer = []
+        self.marker_timestamp_buffer = []
 
     def start_stream(self):
         """Start receiving data (DSI-Streamer should already be streaming)."""
         if self.inlet is None:
             raise RuntimeError("Session not prepared. Call prepare_session() first.")
 
-        # Clear any old data.
+        # Open the stream
+        self.inlet.open_stream()
+
+        # Clear any old data
         self.inlet.flush()
+
+        # Clear buffers
         self.data_buffer = []
+        self.timestamp_buffer = []
         self.marker_buffer = []
+        self.marker_timestamp_buffer = []
+
         print("Started receiving DSI-24 data stream")
 
     def stop_stream(self):
         """Stop receiving data."""
-        # With LSL, we just stop pulling data.
+        if self.inlet:
+            self.inlet.close_stream()
         print("Stopped receiving DSI-24 data stream")
 
     def get_board_data(self) -> np.ndarray:
@@ -191,37 +218,38 @@ class DSI24Device(EEGDeviceInterface):
         Returns data in format similar to BrainFlow: [channels x samples]
         """
         if self.inlet is None:
-            return np.array([])
+            return np.zeros((self.n_channels + 1, 0))
 
-        # Pull all available samples.
-        samples = []
-        timestamps = []
+        # Pull all available EEG samples.
+        samples, timestamps = self.inlet.pull_chunk(timeout=0.0, max_samples=1024)
 
-        while True:
-            sample, timestamp = self.inlet.pull_sample(timeout=0.0)
-            if sample is None:
-                break
-            samples.append(sample)
-            timestamps.append(timestamp)
+        # Pull all available marker samples if we have a marker inlet
+        marker_samples = []
+        marker_timestamps = []
+        if self.marker_inlet:
+            marker_samples, marker_timestamps = self.marker_inlet.pull_chunk(
+                timeout=0.0, max_samples=1024
+            )
 
         if not samples:
             # Return empty array with correct shape.
-            return np.zeros((self.n_channels + 1, 0))  # +1 for marker channel
+            return np.zeros((self.n_channels + 1, 0))
 
-        # Convert to numpy array.
+        # Convert EEG samples to numpy array and transpose.
         data = np.array(samples).T  # Shape: [channels x samples]
 
-        # Add marker channel (zeros for now, will be updated with insert_marker).
+        # Create marker channel.
         marker_channel = np.zeros((1, data.shape[1]))
 
-        # Check if we have markers to insert.
-        if self.marker_buffer:
-            # Simple approach: place markers at beginning of this chunk.
-            for i, marker_val in enumerate(self.marker_buffer[: data.shape[1]]):
+        # If we have markers, try to align them with the EEG data.
+        if marker_samples and marker_timestamps:
+            # TODO: Simple approach: if we have any markers, place them at the beginning
+            # In a more sophisticated implementation, you'd align by timestamps.
+            for i, marker_val in enumerate(marker_samples):
                 if i < marker_channel.shape[1]:
-                    marker_channel[0, i] = marker_val
-            # Clear used markers
-            self.marker_buffer = self.marker_buffer[data.shape[1] :]
+                    marker_channel[0, i] = marker_val[
+                        0
+                    ]  # marker_samples is a list of lists
 
         # Combine EEG data with marker channel.
         full_data = np.vstack([data, marker_channel])
@@ -232,17 +260,23 @@ class DSI24Device(EEGDeviceInterface):
         """Insert a marker into the stream."""
         if self.marker_outlet:
             self.marker_outlet.push_sample([marker])
-            # Also store locally for alignment with EEG data
-            self.marker_buffer.append(marker)
 
     def release_session(self):
         """Clean up resources."""
         if self.inlet:
             self.inlet.close_stream()
+            del self.inlet
             self.inlet = None
+
+        if self.marker_inlet:
+            self.marker_inlet.close_stream()
+            del self.marker_inlet
+            self.marker_inlet = None
+
         if self.marker_outlet:
             del self.marker_outlet
             self.marker_outlet = None
+
         print("DSI-24 session released")
 
     def get_device_info(self) -> Dict:
