@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass, field, fields
-from typing import Dict, Optional, get_origin
+from typing import Dict, Optional, Union, get_args, get_origin
 
 import yaml
 
@@ -49,37 +49,64 @@ class EegExperimentConfig:
         """
         Validation after the object has been initialized.
         """
-        # Runtime type validation.
+        # Runtime type validation. Iterate over all fields defined in the dataclass.
         for f in fields(self):
             value = getattr(self, f.name)
 
-            # Skip validation for None values if field is Optional.
-            if value is None and get_origin(f.type) is type(Optional[str]):
-                continue
+            # Get the origin and args of the type hint
+            origin = get_origin(f.type)
+            args = get_args(f.type)
 
-            check_type = get_origin(f.type) or f.type
+            # Check if this is an Optional type (Union with None)
+            is_optional = origin is Union and len(args) == 2 and type(None) in args
 
-            # Handle Optional types.
-            if check_type is type(Optional[str]):
-                if value is not None and not isinstance(value, str):
+            if is_optional:
+                # For Optional types, get the non-None type
+                actual_type = args[0] if args[1] is type(None) else args[1]
+
+                # Allow None for Optional fields
+                if value is None:
+                    continue
+
+                # If not None, check if it matches the expected type
+                # Handle Dict specially
+                if get_origin(actual_type) is dict:
+                    if not isinstance(value, dict):
+                        raise TypeError(
+                            f"Invalid type for '{f.name}'. "
+                            f"Expected dict or None, but got {type(value).__name__}."
+                        )
+                elif not isinstance(value, actual_type):
                     raise TypeError(
                         f"Invalid type for '{f.name}'. "
-                        f"Expected str or None, but got {type(value).__name__}."
+                        f"Expected {actual_type.__name__} or None, "
+                        f"but got {type(value).__name__}."
                     )
-                continue
+            else:
+                # For non-Optional types, use the original logic.
+                check_type = origin or f.type
 
-            if not isinstance(value, check_type):
-                raise TypeError(
-                    f"Invalid type for '{f.name}'. "
-                    f"Expected {check_type.__name__}, but got {type(value).__name__}."
-                )
+                # Special handling for Dict type.
+                if origin is dict:
+                    if not isinstance(value, dict):
+                        raise TypeError(
+                            f"Invalid type for '{f.name}'. "
+                            f"Expected dict, but got {type(value).__name__}."
+                        )
+                elif not isinstance(value, check_type):
+                    raise TypeError(
+                        f"Invalid type for '{f.name}'. "
+                        f"Expected {check_type.__name__}, but got {type(value).__name__}."
+                    )
 
-        # Check eeg_channel_mapping contents.
-        if not all(isinstance(k, int) for k in self.eeg_channel_mapping.keys()):
-            raise TypeError("All keys in 'eeg_channel_mapping' must be integers.")
+        # The loop above checked that `eeg_channel_mapping` is a dict. Now we check the
+        # contents of the dict (only if it's not empty).
+        if self.eeg_channel_mapping:
+            if not all(isinstance(k, int) for k in self.eeg_channel_mapping.keys()):
+                raise TypeError("All keys in 'eeg_channel_mapping' must be integers.")
 
-        if not all(isinstance(v, str) for v in self.eeg_channel_mapping.values()):
-            raise TypeError("All values in 'eeg_channel_mapping' must be strings.")
+            if not all(isinstance(v, str) for v in self.eeg_channel_mapping.values()):
+                raise TypeError("All values in 'eeg_channel_mapping' must be strings.")
 
         # Validate device_type.
         valid_devices = ["cyton", "dsi24", "synthetic"]
@@ -90,6 +117,12 @@ class EegExperimentConfig:
 
         if self.device_type == "synthetic":
             print("WARNING: USING SYNTHETIC DEVICE (DEMO MODE)")
+
+        # Validate that eeg_device_address is provided for Cyton device.
+        if self.device_type == "cyton" and not self.eeg_device_address:
+            raise ValueError(
+                "eeg_device_address must be provided when using Cyton device"
+            )
 
         print("Configuration successfully loaded and validated.")
 
@@ -104,11 +137,17 @@ def load_config_yaml(*, yaml_file_path: str):
     with open(yaml_file_path, "r") as file:
         config_dict = yaml.safe_load(file)
 
-    # Handle None values in YAML (they come as None from yaml.safe_load)
+    # Ensure optional fields are present in the dict with None if not specified.
     if "eeg_device_address" not in config_dict:
         config_dict["eeg_device_address"] = None
 
-    # Validate config
+    if "eeg_channel_mapping" not in config_dict:
+        config_dict["eeg_channel_mapping"] = None
+
+    if "lsl_stream_name" not in config_dict:
+        config_dict["lsl_stream_name"] = "DSI-24"  # Use default
+
+    # Validate config.
     config_dataclass = EegExperimentConfig(**config_dict)
 
     return config_dict
