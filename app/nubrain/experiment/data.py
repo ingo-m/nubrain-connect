@@ -72,7 +72,6 @@ def eeg_data_logging(subprocess_params: dict):
         "eeg_channels": eeg_channels,
         "marker_channel": marker_channel,
         "eeg_channel_mapping": eeg_channel_mapping,
-        "eeg_device_address": eeg_device_address,
         # Timing parameters
         "initial_rest_duration": initial_rest_duration,
         "image_duration": image_duration,
@@ -84,6 +83,9 @@ def eeg_data_logging(subprocess_params: dict):
         # Misc
         "utility_frequency": utility_frequency,
     }
+
+    if eeg_device_address is not None:
+        experiment_metadata["eeg_device_address"] = eeg_device_address
 
     print(f"Initializing HDF5 file at: {path_out_data}")
     with h5py.File(path_out_data, "w") as file:
