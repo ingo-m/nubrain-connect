@@ -174,39 +174,25 @@ class DSI24Device(EEGDeviceInterface):
 
         # Try to get channel labels from the stream.
         self.channel_labels = full_info.get_channel_labels()
-        if self.channel_labels is None:
-            # If no labels in stream, use mapping or generate default.
-            if self.eeg_channel_mapping:
-                print(
-                    "No channel labels found in DSI-24 stream, use eeg_channel_mapping "
-                    + f"from config file: {self.eeg_channel_mapping}"
-                )
-                self.channel_labels = [
-                    self.eeg_channel_mapping.get(i, f"Ch{i+1}")
-                    for i in range(self.n_channels)
-                ]
-            else:
-                self.channel_labels = [f"Ch{i+1}" for i in range(self.n_channels)]
-                print(
-                    "No channel labels found in DSI-24 stream, "
-                    + "use default labels: {}"
-                )
-        else:  # self.channel_labels is not None
-            if self.eeg_channel_mapping:
-                print(
-                    "WARNING: Ignoring user-provided eeg_channel_mapping (from "
-                    + "config file), using channel labels from DSI-24 device instead: "
-                    + f"{self.channel_labels}"
-                )
-            else:
-                print(
-                    "Use EEG channel labels obtained from DSI-24 device: "
-                    + f"{self.channel_labels}"
-                )
+
+        if self.eeg_channel_mapping is not None:
+            print(
+                "WARNING: eeg_channel_mapping from config yaml is ignored when using "
+                "DSI-24 device. Will get channel mapping from DSI-24 device."
+            )
+
+        # `self.channel_labels` is a list of strings, e.g. `["P3", "C3", "F3", "Fz",
+        # ...]`. Construct `eeg_channel_mapping` dictionary, e.g. `{0: 'P3', 1: 'C3', 2:
+        # 'F3', 3: 'Fz'}`. We assume that the order of channels in `self.channel_labels`
+        # corresponds to the rows of the array of EEG data obtained from the device.
+        # TODO: Check if that assumption holds.
+        self.eeg_channel_mapping = {}
+        for idx_channel, channel_label in enumerate(self.channel_labels):
+            self.eeg_channel_mapping[idx_channel] = channel_label
 
         print(f"Channel count: {self.n_channels}")
         print(f"Sampling rate: {self.sampling_rate} Hz")
-        # print(f"Channel labels: {self.channel_labels}")
+        print(f"Channel mapping: {self.eeg_channel_mapping}")
 
         # Create marker outlet for sending stimulus markers
         marker_info = self.StreamInfo(
