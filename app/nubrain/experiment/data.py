@@ -96,6 +96,7 @@ def eeg_data_logging(subprocess_params: dict):
         # Iterate over the Python dictionary and save each item as an attribute of the
         # "metadata" group.
         for key, value in experiment_metadata.items():
+            print(f"experiment_metadata: key: {key} | value: {value}")
             # HDF5 attributes have limitations on data types. Complex types like
             # dictionaries or tuples are not natively supported. We check if the value
             # is a type that needs to be converted to a string. JSON is a convenient
