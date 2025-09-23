@@ -43,7 +43,7 @@ class EegExperimentConfig:
     eeg_device_address: Optional[str] = None  # Optional with default None
 
     # Use default_factory for mutable types
-    eeg_channel_mapping: Dict[int, str] = field(default_factory=dict)
+    eeg_channel_mapping: Optional[Dict[int, str]] = field(default_factory=dict)
 
     def __post_init__(self):
         """
@@ -88,10 +88,10 @@ class EegExperimentConfig:
 
                 # Special handling for Dict type.
                 if origin is dict:
-                    if not isinstance(value, dict) or value is None:
+                    if not isinstance(value, dict):
                         raise TypeError(
                             f"Invalid type for '{f.name}'. "
-                            f"Expected dict or None, but got {type(value).__name__}."
+                            f"Expected dict, but got {type(value).__name__}."
                         )
                 elif not isinstance(value, check_type):
                     raise TypeError(
