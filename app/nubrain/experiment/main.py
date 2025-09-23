@@ -28,7 +28,7 @@ def experiment(config: dict):
     output_directory = config["output_directory"]
     image_directory = config["image_directory"]
 
-    eeg_channel_mapping = config["eeg_channel_mapping"]
+    eeg_channel_mapping = config.get("eeg_channel_mapping", None)
 
     utility_frequency = config["utility_frequency"]
 
@@ -41,7 +41,7 @@ def experiment(config: dict):
     n_blocks = config["n_blocks"]
     images_per_block = config["images_per_block"]
 
-    eeg_device_address = config.get("eeg_device_address", "")
+    eeg_device_address = config.get("eeg_device_address", None)
 
     global_config = GlobalConfig()
 
@@ -93,7 +93,7 @@ def experiment(config: dict):
     eeg_device.start_stream()
     sleep(0.1)
 
-    # Get device info
+    # Get device info.
     device_info = eeg_device.get_device_info()
     eeg_board_description = device_info["board_description"]
     eeg_sampling_rate = device_info["sampling_rate"]

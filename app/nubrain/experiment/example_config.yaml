@@ -11,40 +11,29 @@ session_id: "session-001"
 output_directory: "C:\\experiments\\output"
 image_directory: "C:\\experiments\\images"
 
-# 8 Channel Cyton montage.
+# EEG channel mapping is optional for DSI-24. Will try to get channel names from the LSL
+# stream.
 # eeg_channel_mapping:
-#   # CPz = REF, white cable, SRB Cyton board pin
-#   # AFz = GND, black cable, BIAS Cyton board pin
-#   0: "O1" # grey cable, N1 Cyton board pin
-#   1: "O2" # purple cable, N2 Cyton board pin
-#   2: "T3" # blue cable, N3 Cyton board pin
-#   3: "T4" # green cable, N4 Cyton board pin
-#   4: "T5" # yellow cable, N5 Cyton board pin
-#   5: "T6" # orange cable, N6 Cyton board pin
-#   6: "F3" # red cable, N7 Cyton board pin
-#   7: "F4" # brown cable, N8 Cyton board pin
-
-# DSI-24 channel mapping. TODO: Verify DSI-24 montage.
-eeg_channel_mapping:
-  0: "Fp1"
-  1: "Fp2"
-  2: "F3"
-  3: "F4"
-  4: "C3"
-  5: "C4"
-  6: "P3"
-  7: "P4"
-  8: "O1"
-  9: "O2"
-  10: "F7"
-  11: "F8"
-  12: "T3"
-  13: "T4"
-  14: "T5"
-  15: "T6"
-  16: "Fz"
-  17: "Cz"
-  18: "Pz"
+#   0: "Fp1"
+#   1: "Fp2"
+#   2: "F7"
+#   3: "F3"
+#   4: "Fz"
+#   5: "F4"
+#   6: "F8"
+#   7: "T3"
+#   8: "C3"
+#   9: "Cz"
+#   10: "C4"
+#   11: "T4"
+#   12: "T5"
+#   13: "P3"
+#   14: "Pz"
+#   15: "P4"
+#   16: "T6"
+#   17: "O1"
+#   18: "O2"
+#   19: "Trigger"  # If DSI-24 has a trigger channel
 
 # Condition durations in seconds:
 initial_rest_duration: 5.0
@@ -56,6 +45,5 @@ inter_block_grey_duration: 5.0
 n_blocks: 3 # 20
 images_per_block: 3 # 20
 
-# Not needed for DSI-24 but kept for compatibility with OpenBCI Cyton device.
-# eeg_device_address: "/dev/ttyUSB0"  # <-- When using Cyton on Ubuntu
-eeg_device_address: ""
+# Not needed for DSI-24, leave as null or omit
+# eeg_device_address:
