@@ -85,8 +85,13 @@ def experiment(config: dict):
 
     eeg_device = create_eeg_device(device_type, **device_kwargs)
 
-    # Prepare session
     eeg_device.prepare_session()
+
+    # This is a bit clunky. At this point, `eeg_channel_mapping` is None or a dict with
+    # a channel mapping from the config yaml file. Overwrite it with the channel mapping
+    # from the device (in case of the DSI-24 device, the channel mapping from the device
+    # is used in any case).
+    eeg_channel_mapping = eeg_device.eeg_channel_mapping
 
     # Need to start the stream before calling `eeg_device.get_device_info()`, because
     # we retrieve data from board to determine data shape (number of channels).
@@ -105,6 +110,7 @@ def experiment(config: dict):
     print(f"Sampling Rate: {eeg_sampling_rate} Hz")
     print(f"EEG Channels: {eeg_channels}")
     print(f"Marker Channel: {marker_channel}")
+    print(f"EEG Channel Mapping: {eeg_channel_mapping}")
 
     board_data = eeg_device.get_board_data()
 
