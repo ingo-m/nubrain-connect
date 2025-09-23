@@ -67,7 +67,7 @@ class BrainFlowDevice(EEGDeviceInterface):
         self.eeg_channel_mapping = eeg_channel_mapping
         self.board_description = BoardShim.get_board_descr(board_id)
 
-        # Update channel names from config
+        # Update channel names from config.
         eeg_channel_idxs = sorted(list(eeg_channel_mapping.keys()))
         eeg_channel_names = [eeg_channel_mapping[idx] for idx in eeg_channel_idxs]
         self.board_description["eeg_names"] = ",".join(eeg_channel_names)
@@ -189,10 +189,6 @@ class DSI24Device(EEGDeviceInterface):
         self.eeg_channel_mapping = {}
         for idx_channel, channel_label in enumerate(self.channel_labels):
             self.eeg_channel_mapping[idx_channel] = channel_label
-
-        print(f"Channel count: {self.n_channels}")
-        print(f"Sampling rate: {self.sampling_rate} Hz")
-        print(f"Channel mapping: {self.eeg_channel_mapping}")
 
         # Create marker outlet for sending stimulus markers
         marker_info = self.StreamInfo(
@@ -336,11 +332,7 @@ class DSI24Device(EEGDeviceInterface):
         board_description = {
             "name": f"DSI-24 ({self.stream_info.name()})",
             "sampling_rate": self.sampling_rate,
-            "package_num_channel": 0,  # Not applicable for LSL
-            "timestamp_channel": -1,  # Using LSL timestamps
             "marker_channel": self.n_channels,  # Last channel after EEG channels
-            "num_rows": self.n_channels + 1,  # EEG channels + marker channel
-            "eeg_channels": list(range(self.n_channels)),
             "eeg_names": ",".join(self.channel_labels),
         }
 
