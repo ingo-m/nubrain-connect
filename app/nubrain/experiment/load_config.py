@@ -88,10 +88,10 @@ class EegExperimentConfig:
 
                 # Special handling for Dict type.
                 if origin is dict:
-                    if not isinstance(value, dict):
+                    if not isinstance(value, dict) or value is None:
                         raise TypeError(
                             f"Invalid type for '{f.name}'. "
-                            f"Expected dict, but got {type(value).__name__}."
+                            f"Expected dict or None, but got {type(value).__name__}."
                         )
                 elif not isinstance(value, check_type):
                     raise TypeError(
