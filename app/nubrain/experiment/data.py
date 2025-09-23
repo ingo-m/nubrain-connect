@@ -69,8 +69,6 @@ def eeg_data_logging(subprocess_params: dict):
         "eeg_board_description": eeg_board_description,
         "eeg_sampling_rate": eeg_sampling_rate,
         "n_channels_total": n_channels_total,
-        "eeg_channels": eeg_channels,
-        "marker_channel": marker_channel,
         "eeg_channel_mapping": eeg_channel_mapping,
         # Timing parameters
         "initial_rest_duration": initial_rest_duration,
@@ -84,8 +82,13 @@ def eeg_data_logging(subprocess_params: dict):
         "utility_frequency": utility_frequency,
     }
 
+    # Parameters not used by DSI-24, for compatibility with Cyton board.
     if eeg_device_address is not None:
         experiment_metadata["eeg_device_address"] = eeg_device_address
+    if eeg_channels is not None:
+        experiment_metadata["eeg_channels"] = eeg_channels
+    if marker_channel is not None:
+        experiment_metadata["marker_channel"] = marker_channel
 
     print(f"Initializing HDF5 file at: {path_out_data}")
     with h5py.File(path_out_data, "w") as file:
@@ -98,7 +101,6 @@ def eeg_data_logging(subprocess_params: dict):
         # Iterate over the Python dictionary and save each item as an attribute of the
         # "metadata" group.
         for key, value in experiment_metadata.items():
-            print(f"experiment_metadata: key: {key} | value: {value}")
             # HDF5 attributes have limitations on data types. Complex types like
             # dictionaries or tuples are not natively supported. We check if the value
             # is a type that needs to be converted to a string. JSON is a convenient
@@ -112,16 +114,34 @@ def eeg_data_logging(subprocess_params: dict):
         # ------------------------------------------------------------------------------
         # *** Initialize hdf5 dataset for EEG data
 
-        # Initialize dataset for board data (EEG and additional channels). To handle a
-        # variable number of timesteps, create a resizable dataset. We specify an
-        # initial shape but set the 'maxshape' to allow one of the dimensions to be
-        # unlimited (by setting it to None). 'chunks=True' is recommended for resizable
-        # datasets for better performance. It lets h5py decide the chunk size.
+        # Initialize dataset for EEG and additional channels. To handle a variable
+        # number of timesteps, create a resizable dataset. We specify an initial shape
+        # but set the 'maxshape' to allow one of the dimensions to be unlimited (by
+        # setting it to None). 'chunks=True' is recommended for resizable datasets for
+        # better performance. It lets h5py decide the chunk size.
+
         file.create_dataset(
-            "board_data",
-            shape=(n_channels_total, 0),  # Start with 0 timesteps
+            "eeg_data",
+            shape=(n_channels_total, 0),
             maxshape=(n_channels_total, None),  # fixed_channels, unlimited_timesteps
             dtype=global_config.hdf5_dtype,
+            chunks=True,
+        )
+
+        file.create_dataset(
+            "eeg_timestamps",
+            shape=(0,),
+            maxshape=(None,),
+            dtype="float64",  # LSL timestamps
+            chunks=True,
+        )
+
+        marker_dtype = np.dtype([("marker_value", "float32"), ("timestamp", "float64")])
+        file.create_dataset(
+            "marker_data",
+            shape=(0,),
+            maxshape=(None,),
+            dtype=marker_dtype,
             chunks=True,
         )
 
@@ -167,64 +187,80 @@ def eeg_data_logging(subprocess_params: dict):
             print("Ending preprocessing & data saving process.")
             break
 
-        new_board_data = new_data["board_data"]
-        new_stimulus_data = new_data["stimulus_data"]
+        data_type = new_data["type"]
 
         with h5py.File(path_out_data, "a") as file:
             # --------------------------------------------------------------------------
-            # *** Write board data to hdf5 file
+            # *** Write EEG data to hdf5 file
 
-            if new_board_data is not None:
-                hdf5_board_data = file["board_data"]
+            if data_type == "eeg":
+                new_eeg_data = new_data.get("eeg_data")
+                new_timestamps = new_data.get("eeg_timestamps")
 
-                # Get the current number of samples in the dataset.
-                n_existing_samples = hdf5_board_data.shape[1]
-                # Get the number of samples in the new batch.
-                n_new_samples = new_board_data.shape[1]
+                if new_eeg_data is not None and new_eeg_data.size > 0:
+                    # Write EEG data.
+                    hdf5_eeg_data = file["eeg_data"]
+                    n_existing = hdf5_eeg_data.shape[1]
+                    n_new = new_eeg_data.shape[1]
+                    hdf5_eeg_data.resize(n_existing + n_new, axis=1)
+                    hdf5_eeg_data[:, n_existing:] = new_eeg_data
 
-                # Resize the dataset to accommodate the new data.
-                n_total_samples = n_existing_samples + n_new_samples
-                hdf5_board_data.resize(n_total_samples, axis=1)
-
-                # Write the new data batch into the newly allocated space.
-                hdf5_board_data[:, n_existing_samples:n_total_samples] = new_board_data
+                    # Write EEG timestamps.
+                    hdf5_timestamps = file["eeg_timestamps"]
+                    n_existing_ts = hdf5_timestamps.shape[0]
+                    hdf5_timestamps.resize(n_existing_ts + n_new, axis=0)
+                    hdf5_timestamps[n_existing_ts:] = new_timestamps
 
             # --------------------------------------------------------------------------
-            # *** Write image data to hdf5 file
+            # *** Write stimulus markers to hdf5 file
 
-            # It is possible to receive board data without stimulus metadata (e.g. for
-            # inter-stimulus interval).
-            if new_stimulus_data is not None:
-                hdf5_stimulus_data = file["stimulus_data"]
+            elif data_type == "marker":
+                marker_value = new_data.get("marker_value")
+                marker_timestamp = new_data.get("timestamp")
 
-                image_file_path = new_stimulus_data["image_file_path"]
-                image_bytes = load_image_as_bytes(image_path=image_file_path)
-                image_bytes = resize_image(image_bytes=image_bytes)
+                if marker_value is not None:
+                    hdf5_marker_data = file["marker_data"]
+                    n_existing = hdf5_marker_data.shape[0]
+                    hdf5_marker_data.resize(n_existing + 1, axis=0)
+                    hdf5_marker_data[n_existing] = (marker_value, marker_timestamp)
 
-                stimulus_start_time = new_stimulus_data["stimulus_start_time"]
-                stimulus_end_time = new_stimulus_data["stimulus_end_time"]
-                stimulus_duration_s = new_stimulus_data["stimulus_duration_s"]
-                image_file_path = new_stimulus_data["image_file_path"]
-                image_category = new_stimulus_data["image_category"]
-                # image_description = new_stimulus_data["image_description"]
+            # --------------------------------------------------------------------------
+            # *** Write stimulus data to hdf5 file
 
-                data_to_write = np.empty((1,), dtype=stimulus_dtype)
-                data_to_write[0]["stimulus_start_time"] = stimulus_start_time
-                data_to_write[0]["stimulus_end_time"] = stimulus_end_time
-                data_to_write[0]["stimulus_duration_s"] = stimulus_duration_s
-                data_to_write[0]["image_file_path"] = image_file_path
-                data_to_write[0]["image_category"] = image_category
-                # data_to_write[0]["image_description"] = image_description
-                # The image data is stored as a numpy array of bytes (uint8).
-                data_to_write[0]["image_bytes"] = np.frombuffer(
-                    image_bytes,
-                    dtype=np.uint8,
-                )
+            elif data_type == "stimulus":
+                new_stimulus_data = new_data.get("stimulus_data")
 
-                # Write the structured array to the dataset.
-                hdf5_stimulus_data[stimulus_counter] = data_to_write
+                if new_stimulus_data is not None:
+                    hdf5_stimulus_data = file["stimulus_data"]
 
-                print(f"Stimulus counter: {stimulus_counter}")
-                stimulus_counter += 1
+                    image_file_path = new_stimulus_data["image_file_path"]
+                    image_bytes = load_image_as_bytes(image_path=image_file_path)
+                    image_bytes = resize_image(image_bytes=image_bytes)
+
+                    stimulus_start_time = new_stimulus_data["stimulus_start_time"]
+                    stimulus_end_time = new_stimulus_data["stimulus_end_time"]
+                    stimulus_duration_s = new_stimulus_data["stimulus_duration_s"]
+                    image_file_path = new_stimulus_data["image_file_path"]
+                    image_category = new_stimulus_data["image_category"]
+                    # image_description = new_stimulus_data["image_description"]
+
+                    data_to_write = np.empty((1,), dtype=stimulus_dtype)
+                    data_to_write[0]["stimulus_start_time"] = stimulus_start_time
+                    data_to_write[0]["stimulus_end_time"] = stimulus_end_time
+                    data_to_write[0]["stimulus_duration_s"] = stimulus_duration_s
+                    data_to_write[0]["image_file_path"] = image_file_path
+                    data_to_write[0]["image_category"] = image_category
+                    # data_to_write[0]["image_description"] = image_description
+                    # The image data is stored as a numpy array of bytes (uint8).
+                    data_to_write[0]["image_bytes"] = np.frombuffer(
+                        image_bytes,
+                        dtype=np.uint8,
+                    )
+
+                    # Write the structured array to the dataset.
+                    hdf5_stimulus_data[stimulus_counter] = data_to_write
+
+                    print(f"Stimulus counter: {stimulus_counter}")
+                    stimulus_counter += 1
 
     # End of data preprocessing process.

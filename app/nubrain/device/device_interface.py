@@ -128,7 +128,6 @@ class DSI24Device(EEGDeviceInterface):
 
         # Data buffer and threading.
         self.data_buffer = []
-        self.marker_buffer = []
         self.timestamps_buffer = []
         self.is_streaming = False
         self.pull_thread = None
@@ -240,59 +239,29 @@ class DSI24Device(EEGDeviceInterface):
                 if not self.is_streaming:
                     break
 
-    def get_board_data(self) -> np.ndarray:
+    def get_board_data(self) -> tuple[np.ndarray, np.ndarray]:
         """
-        Get accumulated data from the buffer and clear it. Returns data in format
-        compatible with BrainFlow (channels x samples).
+        Get accumulated data from the buffer and clear it. Returns EEG data and
+        corresponding timestamps.
         """
         with self.buffer_lock:
             if not self.data_buffer:
-                return np.array([]).reshape(self.n_channels + 1, 0)
+                # Return empty data and timestamps arrays.
+                return np.array([]).reshape(self.n_channels, 0), np.array([])
 
             # Convert buffered data to numpy array. Transpose to get channels x samples.
             data_array = np.array(self.data_buffer).T
             timestamps_array = np.array(self.timestamps_buffer)
 
-            # Add marker channel (last row) - initialize with zeros.
-            marker_channel = np.zeros(data_array.shape[1])
-
-            # Add any buffered markers to the marker channel. Match markers to data
-            # based on timestamps.
-            if self.marker_buffer:
-                for marker_val, marker_time in self.marker_buffer:
-                    # Find the closest timestamp in the data.
-                    if len(timestamps_array) > 0:
-                        closest_idx = np.argmin(np.abs(timestamps_array - marker_time))
-                        # Time difference between EEG data timestamps and marker
-                        # timestamp.
-                        time_delta = abs(timestamps_array[closest_idx] - marker_time)
-                        # Only add marker if it's reasonably close (within 20ms).
-                        if time_delta < 0.02:
-                            print(
-                                f"Adding marker {marker_val} with "
-                                + f"time delta {time_delta} s"
-                            )
-                            marker_channel[closest_idx] = marker_val
-                        else:
-                            print(
-                                f"WARNING: Skipping marker {marker_val} with "
-                                + f"time delta {time_delta} s"
-                            )
-
-            # Combine EEG data with marker channel
-            board_data = np.vstack([data_array, marker_channel.reshape(1, -1)])
-
-            # Clear buffers
+            # Clear buffers.
             self.data_buffer.clear()
             self.timestamps_buffer.clear()
-            self.marker_buffer.clear()
 
-            return board_data
+            return data_array, timestamps_array
 
     def insert_marker(self, marker: float):
         """
-        Insert a marker into the marker stream. Also buffer it locally for alignment
-        with EEG data.
+        Insert a marker into the LSL marker stream.
         """
         if self.marker_outlet:
             # Get current LSL timestamp.
@@ -301,11 +270,10 @@ class DSI24Device(EEGDeviceInterface):
             # Send marker through LSL outlet.
             self.marker_outlet.push_sample([marker], timestamp)
 
-            # Also store locally for alignment with get_board_data.
-            with self.buffer_lock:
-                self.marker_buffer.append((marker, timestamp))
-
-            print(f"Inserted marker {marker} at LSL time {timestamp}")
+            # The marker is also returned to be saved by the logging process.
+            # print(f"Inserted marker {marker} at LSL time {timestamp}")
+            return marker, timestamp
+        return None, None
 
     def release_session(self):
         """Clean up resources."""
@@ -319,7 +287,6 @@ class DSI24Device(EEGDeviceInterface):
         with self.buffer_lock:
             self.data_buffer.clear()
             self.timestamps_buffer.clear()
-            self.marker_buffer.clear()
 
         print("Released DSI-24 session")
 
@@ -328,20 +295,19 @@ class DSI24Device(EEGDeviceInterface):
         if not self.inlet:
             raise RuntimeError("Device not initialized. Call prepare_session() first.")
 
-        # Create board description similar to BrainFlow format
+        # Create board description similar to BrainFlow format.
         board_description = {
             "name": f"DSI-24 ({self.stream_info.name()})",
             "sampling_rate": self.sampling_rate,
-            "marker_channel": self.n_channels,  # Last channel after EEG channels
             "eeg_names": ",".join(self.channel_labels),
         }
 
         return {
             "board_description": board_description,
             "sampling_rate": int(self.sampling_rate),
-            "eeg_channels": list(range(self.n_channels)),
-            "marker_channel": self.n_channels,  # Marker channel index
-            "n_channels_total": self.n_channels + 1,  # Include marker channel
+            "eeg_channels": None,  # For backward compatibility with Cyton
+            "marker_channel": None,  # For backward compatibility with Cyton
+            "n_channels_total": self.n_channels,
         }
 
 

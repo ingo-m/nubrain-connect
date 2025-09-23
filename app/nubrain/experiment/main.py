@@ -112,10 +112,11 @@ def experiment(config: dict):
     print(f"Marker Channel: {marker_channel}")
     print(f"EEG Channel Mapping: {eeg_channel_mapping}")
 
-    board_data = eeg_device.get_board_data()
+    board_data, board_timestamps = eeg_device.get_board_data()
 
     print(f"Board data dtype: {board_data.dtype}")
     print(f"Board data shape: {board_data.shape}")
+    print(f"Board timestamps shape: {board_timestamps.shape}")
 
     # ----------------------------------------------------------------------------------
     # *** Start data logging subprocess
@@ -199,7 +200,7 @@ def experiment(config: dict):
             pygame.display.flip()
 
             # Clear board buffer.
-            _ = eeg_device.get_board_data()
+            _, _ = eeg_device.get_board_data()
 
             # Pause for specified number of milliseconds.
             pygame.time.delay(int(round(initial_rest_duration * 1000.0)))
@@ -228,15 +229,29 @@ def experiment(config: dict):
 
                     # Start of stimulus presentation.
                     t1 = time()
-                    # Insert stimulus start marker into EEG data.
-                    eeg_device.insert_marker(global_config.stim_start_marker)
+                    # Insert stimulus start marker and get its timestamp.
+                    marker_val, marker_ts = eeg_device.insert_marker(
+                        global_config.stim_start_marker
+                    )
+                    if marker_val is not None:
+                        data_logging_queue.put(
+                            {
+                                "type": "marker",
+                                "marker_value": marker_val,
+                                "timestamp": marker_ts,
+                            }
+                        )
 
-                    # Send pre-stimulus board data (to avoid buffer overflow).
-                    data_to_queue = {
-                        "board_data": eeg_device.get_board_data(),
-                        "stimulus_data": None,
-                    }
-                    data_logging_queue.put(data_to_queue)
+                    # Send pre-stimulus EEG data.
+                    eeg_data, eeg_ts = eeg_device.get_board_data()
+                    if eeg_data.size > 0:
+                        data_logging_queue.put(
+                            {
+                                "type": "eeg",
+                                "eeg_data": eeg_data,
+                                "eeg_timestamps": eeg_ts,
+                            }
+                        )
 
                     # Time until when to show stimulus.
                     t2 = t1 + image_duration
@@ -247,9 +262,30 @@ def experiment(config: dict):
                     screen.fill(global_config.rest_condition_color)
                     pygame.display.flip()
                     t3 = time()
-                    eeg_device.insert_marker(global_config.stim_end_marker)
 
-                    # Send data corresponding to stimulus period.
+                    marker_val, marker_ts = eeg_device.insert_marker(
+                        global_config.stim_end_marker
+                    )
+                    if marker_val is not None:
+                        data_logging_queue.put(
+                            {
+                                "type": "marker",
+                                "marker_value": marker_val,
+                                "timestamp": marker_ts,
+                            }
+                        )
+
+                    eeg_data, eeg_ts = eeg_device.get_board_data()
+
+                    if eeg_data.size > 0:
+                        data_logging_queue.put(
+                            {
+                                "type": "eeg",
+                                "eeg_data": eeg_data,
+                                "eeg_timestamps": eeg_ts,
+                            }
+                        )
+
                     stimulus_data = {
                         "stimulus_start_time": t1,
                         "stimulus_end_time": t3,
@@ -257,11 +293,13 @@ def experiment(config: dict):
                         "image_file_path": image_file_path,
                         "image_category": image_category,
                     }
-                    data_to_queue = {
-                        "board_data": eeg_device.get_board_data(),
-                        "stimulus_data": stimulus_data,
-                    }
-                    data_logging_queue.put(data_to_queue)
+
+                    data_logging_queue.put(
+                        {
+                            "type": "stimulus",
+                            "stimulus_data": stimulus_data,
+                        }
+                    )
 
                     # Load next image.
                     image_and_metadata = None
@@ -294,11 +332,15 @@ def experiment(config: dict):
                     break
 
                 # Send post-stimulus board data (to avoid buffer overflow).
-                data_to_queue = {
-                    "board_data": eeg_device.get_board_data(),
-                    "stimulus_data": None,
-                }
-                data_logging_queue.put(data_to_queue)
+                eeg_data, eeg_ts = eeg_device.get_board_data()
+                if eeg_data.size > 0:
+                    data_logging_queue.put(
+                        {
+                            "type": "eeg",
+                            "eeg_data": eeg_data,
+                            "eeg_timestamps": eeg_ts,
+                        }
+                    )
 
                 # Inter-block grey screen.
                 print(f"End of Block {idx_block + 1}. Starting inter-block interval.")
@@ -324,11 +366,15 @@ def experiment(config: dict):
             running = False
 
             # Send final board data.
-            data_to_queue = {
-                "board_data": eeg_device.get_board_data(),
-                "stimulus_data": None,
-            }
-            data_logging_queue.put(data_to_queue)
+            eeg_data, eeg_ts = eeg_device.get_board_data()
+            if eeg_data.size > 0:
+                data_logging_queue.put(
+                    {
+                        "type": "eeg",
+                        "eeg_data": eeg_data,
+                        "eeg_timestamps": eeg_ts,
+                    }
+                )
 
         except Exception as e:
             print(f"An error occurred during the experiment: {e}")
