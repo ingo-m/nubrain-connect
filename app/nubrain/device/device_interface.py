@@ -189,13 +189,13 @@ class DSI24Device(EEGDeviceInterface):
         for idx_channel, channel_label in enumerate(self.channel_labels):
             self.eeg_channel_mapping[idx_channel] = channel_label
 
-        # Create marker outlet for sending stimulus markers
+        # Create marker outlet for sending stimulus markers.
         marker_info = self.StreamInfo(
             name="ExperimentMarkers",
             type="Markers",
             channel_count=1,
             nominal_srate=self.IRREGULAR_RATE,
-            channel_format="float32",
+            channel_format="float64",  # Could be lower precision, but simpler for compatibility with timestamps in numpy array.
             source_id="experiment_markers_" + str(hash(time.time())),
         )
         self.marker_outlet = self.StreamOutlet(marker_info)
