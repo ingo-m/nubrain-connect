@@ -136,12 +136,11 @@ def eeg_data_logging(subprocess_params: dict):
             chunks=True,
         )
 
-        marker_dtype = np.dtype([("marker_value", "float32"), ("timestamp", "float64")])
         file.create_dataset(
             "marker_data",
             shape=(0,),
             maxshape=(None,),
-            dtype=marker_dtype,
+            dtype="float64",
             chunks=True,
         )
 
