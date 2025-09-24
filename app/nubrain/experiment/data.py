@@ -138,7 +138,7 @@ def eeg_data_logging(subprocess_params: dict):
 
         file.create_dataset(
             "marker_data",
-            shape=(2, 0),  # marker value, timestamp
+            shape=(2, 0),  # timestamp, marker value
             maxshape=(2, None),
             dtype="float64",
             chunks=True,
@@ -221,7 +221,7 @@ def eeg_data_logging(subprocess_params: dict):
                     hdf5_marker_data = file["marker_data"]
                     n_existing = hdf5_marker_data.shape[1]
                     hdf5_marker_data.resize(n_existing + 1, axis=1)
-                    hdf5_marker_data[:, n_existing:] = (marker_value, marker_timestamp)
+                    hdf5_marker_data[:, n_existing] = (marker_timestamp, marker_value)
 
             # --------------------------------------------------------------------------
             # *** Write stimulus data to hdf5 file
