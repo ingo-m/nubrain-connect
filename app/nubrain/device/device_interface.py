@@ -195,7 +195,7 @@ class DSI24Device(EEGDeviceInterface):
             type="Markers",
             channel_count=1,
             nominal_srate=self.IRREGULAR_RATE,
-            channel_format="float64",  # Could be lower precision, but simpler for compatibility with timestamps in numpy array.
+            channel_format="double64",  # Could be lower precision, but simpler for compatibility with timestamps in numpy array.
             source_id="experiment_markers_" + str(hash(time.time())),
         )
         self.marker_outlet = self.StreamOutlet(marker_info)
