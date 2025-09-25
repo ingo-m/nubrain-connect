@@ -4,7 +4,7 @@ from typing import List
 
 
 def shuffle_with_repetitions(
-    mylist: List,
+    list_with_duplicates: List,
     repetitions: int = 0,
     minimize_runs: bool = True,
 ) -> List:
@@ -15,7 +15,7 @@ def shuffle_with_repetitions(
     element. For example, [1, 1, 2, 2, 2] has 3 repetitions.
 
     Args:
-        mylist: Input list containing duplicates
+        list_with_duplicates: Input list containing duplicates
         repetitions: Target number of consecutive duplicate pairs (default 0)
         minimize_runs: If True, minimize occurrences of 3+ consecutive identical items
 
@@ -25,8 +25,8 @@ def shuffle_with_repetitions(
     Raises:
         ValueError: If the target number of repetitions is not achievable
     """
-    freq = Counter(mylist)
-    n = len(mylist)
+    freq = Counter(list_with_duplicates)
+    n = len(list_with_duplicates)
 
     # Calculate bounds for valid repetitions.
     max_repetitions = sum(count - 1 for count in freq.values())
@@ -255,3 +255,30 @@ def count_runs(lst: List, min_length: int = 3) -> int:
             runs += 1
         i = j
     return runs
+
+
+def create_balanced_list(*, image_categories: list, target_length: int):
+    """
+    Creates a list with approximately equal instances of each string.
+
+    Args:
+        strings: List of strings to distribute
+        target_length: Desired length of the output list
+
+    Returns:
+        List with approximately equal distribution of input strings
+    """
+    if not image_categories or target_length <= 0:
+        return []
+
+    n = len(image_categories)
+    base_count = target_length // n  # Minimum count for each string
+    remainder = target_length % n  # Extra items to distribute
+
+    result = []
+    for idx, string in enumerate(image_categories):
+        # First 'remainder' strings get one extra copy.
+        count = base_count + (1 if idx < remainder else 0)
+        result.extend([string] * count)
+
+    return result

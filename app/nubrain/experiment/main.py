@@ -9,7 +9,11 @@ import pygame
 from nubrain.device.device_interface import create_eeg_device
 from nubrain.experiment.data import eeg_data_logging
 from nubrain.experiment.global_config import GlobalConfig
-from nubrain.image.tools import get_all_image_paths, load_and_scale_image
+from nubrain.experiment.randomize_conditions import (
+    create_balanced_list,
+    shuffle_with_repetitions,
+)
+from nubrain.image.tools import get_all_images, load_and_scale_image
 from nubrain.misc.datetime import get_formatted_current_datetime
 
 mp.set_start_method("spawn", force=True)  # Necessary on if running on windows?
@@ -40,6 +44,7 @@ def experiment(config: dict):
 
     n_blocks = config["n_blocks"]
     images_per_block = config["images_per_block"]
+    n_target_events = config["n_target_events"]
 
     eeg_device_address = config.get("eeg_device_address", None)
 
@@ -58,13 +63,34 @@ def experiment(config: dict):
         raise AssertionError(f"Target file already exists: {path_out_data}")
 
     # ----------------------------------------------------------------------------------
-    # *** Get image paths
+    # *** Get input images & their categories
 
-    image_file_paths = get_all_image_paths(image_directory=image_directory)
+    images_and_categories = get_all_images(image_directory=image_directory)
 
-    if not image_file_paths:
+    if not images_and_categories:
         raise AssertionError(f"Found no images at {image_directory}")
-    print(f"Found {len(image_file_paths)} images")
+    print(f"Found {len(images_and_categories)} images")
+
+    # ----------------------------------------------------------------------------------
+    # *** Create pseudo-random condition order
+
+    # List with all unique image categories (e.g. `["apple", "banana", ...]`).
+    image_categories = list(set([x["image_category"] for x in images_and_categories]))
+
+    n_trials = n_blocks * images_per_block
+
+    # Order of image categories.
+    trial_order = create_balanced_list(
+        image_categories=image_categories,
+        target_length=n_trials,
+    )
+    random.shuffle(trial_order)
+
+    trial_order = shuffle_with_repetitions(
+        list_with_duplicates=trial_order,
+        repetitions=n_target_events,
+        minimize_runs=True,
+    )
 
     # ----------------------------------------------------------------------------------
     # *** Prepare EEG measurement

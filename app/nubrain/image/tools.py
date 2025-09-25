@@ -11,10 +11,15 @@ global_config = GlobalConfig()
 max_img_storage_dimension = global_config.max_img_storage_dimension
 
 
-def get_all_image_paths(*, image_directory: str):
+def get_all_images(*, image_directory: str):
     """
-    Get the path of all images in target directory.
+    Get all images in target directory, and their object category (from text file).
+
+    Assumes that for every image file, e.g. "/path/to/image_filename.png", there is a
+    corresponding text file "/path/to/image_filename.txt" containing the object
+    category as a string (e.g. "strawberry").
     """
+    # (1) Find image files.
     extensions = ("*.png", "*.jpg", "*.jpeg")
     image_file_paths = []
     for ext in extensions:
@@ -24,9 +29,32 @@ def get_all_image_paths(*, image_directory: str):
         print(f"No images found in directory: {image_directory}")
         return []
 
-    print(f"Found {len(image_file_paths)} images.")
+    # (2) Load image category from text file (if it exists).
+    images_and_categories = []
+    for image_file_path in image_file_paths:
+        file_path_without_extension = os.path.splitext(image_file_path)[0]
+        path_txt = file_path_without_extension + ".txt"
 
-    return image_file_paths
+        image_category = None
+        try:
+            if os.path.isfile(path_txt):
+                with open(path_txt, "r", encoding="utf-8") as file:
+                    image_category = file.read()
+                image_category = image_category.strip()
+        except Exception as e:
+            print(f"Error loading image metadata {path_txt}: {e}")
+
+        if image_category is None:
+            print(f"Skipping {path_txt}, couldn't load image category form text file.")
+        elif image_category == "":
+            # Empty string.
+            print(f"Skipping {path_txt}, empty image category.")
+        else:
+            images_and_categories.append(
+                {"image_file_path": image_file_path, "image_category": image_category}
+            )
+
+    return images_and_categories
 
 
 def load_and_scale_image(
@@ -68,8 +96,8 @@ def load_and_scale_image(
 
     # (2) Load image category from text file (if it exists).
     try:
-        file_path_withou_extension = os.path.splitext(image_file_path)[0]
-        path_txt = file_path_withou_extension + ".txt"
+        file_path_without_extension = os.path.splitext(image_file_path)[0]
+        path_txt = file_path_without_extension + ".txt"
 
         if os.path.isfile(path_txt):
             with open(path_txt, "r", encoding="utf-8") as file:
