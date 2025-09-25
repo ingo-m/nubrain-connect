@@ -19,10 +19,10 @@ pipenv lock --clear
 
 For local testing:
 ```bash
-conda create -y -n py-nubrain -c conda-forge pip setuptools pipenv python=3.12
+# Not the `liblsl` dependency (needed by pylsls).
+conda create -y -n py-nubrain -c conda-forge pip setuptools pipenv liblsl python=3.12
 conda activate py-nubrain
-pip install nubrain==0.0.22
-# pip install nubrain[dev]==0.0.22
+pip install -e /home/john/github/nubrain-connect/app
 ```
 
 ## Run experiment
