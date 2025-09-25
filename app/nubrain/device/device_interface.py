@@ -224,7 +224,7 @@ class DSI24Device(EEGDeviceInterface):
         while self.is_streaming:
             try:
                 # Pull chunk of samples (more efficient than single samples).
-                chunk, timestamps = self.inlet.pull_chunk(timeout=0.0, max_samples=128)
+                chunk, timestamps = self.inlet.pull_chunk(timeout=0.0, max_samples=1024)
 
                 if timestamps:
                     with self.buffer_lock:
