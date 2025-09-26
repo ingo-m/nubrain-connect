@@ -162,6 +162,7 @@ def eeg_data_logging(subprocess_params: dict):
                     "image_bytes",
                     h5py.vlen_dtype(np.uint8),
                 ),  # For variable-length byte arrays
+                ("is_target_event", np.bool),
             ]
         )
 
@@ -242,6 +243,7 @@ def eeg_data_logging(subprocess_params: dict):
                     image_file_path = new_stimulus_data["image_file_path"]
                     image_category = new_stimulus_data["image_category"]
                     # image_description = new_stimulus_data["image_description"]
+                    is_target_event = new_stimulus_data["is_target_event"]
 
                     data_to_write = np.empty((1,), dtype=stimulus_dtype)
                     data_to_write[0]["stimulus_start_time"] = stimulus_start_time
@@ -250,6 +252,7 @@ def eeg_data_logging(subprocess_params: dict):
                     data_to_write[0]["image_file_path"] = image_file_path
                     data_to_write[0]["image_category"] = image_category
                     # data_to_write[0]["image_description"] = image_description
+                    is_target_event[0]["is_target_event"] = is_target_event
                     # The image data is stored as a numpy array of bytes (uint8).
                     data_to_write[0]["image_bytes"] = np.frombuffer(
                         image_bytes,

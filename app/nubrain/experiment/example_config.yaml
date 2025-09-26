@@ -45,5 +45,7 @@ inter_block_grey_duration: 5.0
 n_blocks: 3 # 20
 images_per_block: 3 # 20
 
+# Response window for target events:
+response_window_duration: 1.2
 # Not needed for DSI-24, leave as null or omit
 # eeg_device_address:

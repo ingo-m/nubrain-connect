@@ -37,6 +37,8 @@ class EegExperimentConfig:
     n_blocks: int
     images_per_block: int
 
+    response_window_duration: float
+
     device_type: str
     lsl_stream_name: str = "DSI-24"  # Default value
 
