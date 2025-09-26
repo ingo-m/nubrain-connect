@@ -465,12 +465,12 @@ def experiment(config: dict):
 
                 # Behavioural results text.
                 results_font = pygame.font.Font(None, 56)
-                hits_text = results_font.render(f"Hits: {n_hits}", True, (0, 150, 0))
+                hits_text = results_font.render(f"Hits: {n_hits}", True, (0, 0, 0))
                 misses_text = results_font.render(
-                    f"Misses: {n_misses}", True, (200, 0, 0)
+                    f"Misses: {n_misses}", True, (0, 0, 0)
                 )
                 false_alarms_text = results_font.render(
-                    f"False Alarms: {n_false_alarms}", True, (200, 100, 0)
+                    f"False Alarms: {n_false_alarms}", True, (0, 0, 0)
                 )
 
                 # Position and display results
@@ -489,7 +489,7 @@ def experiment(config: dict):
                 screen.blit(false_alarms_text, false_alarms_rect)
 
                 pygame.display.flip()
-                pygame.time.wait(3000)  # Show results for 3 seconds
+                pygame.time.wait(5000)  # Show results for 5 seconds
 
             running = False
 
