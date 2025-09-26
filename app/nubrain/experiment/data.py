@@ -152,9 +152,9 @@ def eeg_data_logging(subprocess_params: dict):
         # data.
         stimulus_dtype = np.dtype(
             [
-                ("stimulus_start_time", np.uint64),
-                ("stimulus_end_time", np.uint64),
-                ("stimulus_duration_s", np.float32),
+                ("stimulus_start_time", np.float64),
+                ("stimulus_end_time", np.float64),
+                ("stimulus_duration_s", np.float64),
                 ("image_file_path", h5py.string_dtype(encoding="utf-8")),
                 ("image_category", h5py.string_dtype(encoding="utf-8")),
                 # ("image_description", h5py.string_dtype(encoding="utf-8")),
@@ -162,6 +162,8 @@ def eeg_data_logging(subprocess_params: dict):
                     "image_bytes",
                     h5py.vlen_dtype(np.uint8),
                 ),  # For variable-length byte arrays
+                ("is_target_event", np.bool),
+                ("response_time_s", np.float64),
             ]
         )
 
@@ -171,6 +173,24 @@ def eeg_data_logging(subprocess_params: dict):
             "stimulus_data",
             (n_images,),
             dtype=stimulus_dtype,
+        )
+
+        # ------------------------------------------------------------------------------
+        # *** Initialize hdf5 dataset for behavioural data
+
+        behavioural_dtype = np.dtype(
+            [
+                ("n_total_targets", np.int64),
+                ("n_hits", np.int64),
+                ("n_misses", np.int64),
+                ("n_false_alarms", np.int64),
+            ]
+        )
+
+        file.create_dataset(
+            "behavioural_data",
+            (1,),
+            dtype=behavioural_dtype,
         )
 
     # ----------------------------------------------------------------------------------
@@ -242,6 +262,8 @@ def eeg_data_logging(subprocess_params: dict):
                     image_file_path = new_stimulus_data["image_file_path"]
                     image_category = new_stimulus_data["image_category"]
                     # image_description = new_stimulus_data["image_description"]
+                    is_target_event = new_stimulus_data["is_target_event"]
+                    response_time_s = new_stimulus_data["response_time_s"]
 
                     data_to_write = np.empty((1,), dtype=stimulus_dtype)
                     data_to_write[0]["stimulus_start_time"] = stimulus_start_time
@@ -250,6 +272,8 @@ def eeg_data_logging(subprocess_params: dict):
                     data_to_write[0]["image_file_path"] = image_file_path
                     data_to_write[0]["image_category"] = image_category
                     # data_to_write[0]["image_description"] = image_description
+                    data_to_write[0]["is_target_event"] = is_target_event
+                    data_to_write[0]["response_time_s"] = response_time_s
                     # The image data is stored as a numpy array of bytes (uint8).
                     data_to_write[0]["image_bytes"] = np.frombuffer(
                         image_bytes,
@@ -262,4 +286,29 @@ def eeg_data_logging(subprocess_params: dict):
                     print(f"Stimulus counter: {stimulus_counter}")
                     stimulus_counter += 1
 
-    # End of data preprocessing process.
+            # --------------------------------------------------------------------------
+            # *** Write behavioural data to hdf5 file
+
+            elif data_type == "behavioural":
+                new_behavioural_data = new_data.get("behavioural_data")
+
+                if new_behavioural_data is not None:
+                    hdf5_behavioural_data = file["behavioural_data"]
+
+                    n_total_targets = new_behavioural_data["n_total_targets"]
+                    n_hits = new_behavioural_data["n_hits"]
+                    n_misses = new_behavioural_data["n_misses"]
+                    n_false_alarms = new_behavioural_data["n_false_alarms"]
+
+                    data_to_write = np.empty((1,), dtype=behavioural_dtype)
+
+                    data_to_write[0]["n_total_targets"] = n_total_targets
+                    data_to_write[0]["n_hits"] = n_hits
+                    data_to_write[0]["n_misses"] = n_misses
+                    data_to_write[0]["n_false_alarms"] = n_false_alarms
+
+                    # Write the structured array to the dataset.
+                    hdf5_behavioural_data[0] = data_to_write
+
+
+# End of data preprocessing process.

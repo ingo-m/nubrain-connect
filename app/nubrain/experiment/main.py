@@ -1,6 +1,7 @@
 import multiprocessing as mp
 import os
 import random
+import traceback
 from time import sleep, time
 
 import numpy as np
@@ -9,7 +10,12 @@ import pygame
 from nubrain.device.device_interface import create_eeg_device
 from nubrain.experiment.data import eeg_data_logging
 from nubrain.experiment.global_config import GlobalConfig
-from nubrain.image.tools import get_all_image_paths, load_and_scale_image
+from nubrain.experiment.randomize_conditions import (
+    create_balanced_list,
+    sample_next_image,
+    shuffle_with_repetitions,
+)
+from nubrain.image.tools import get_all_images, load_and_scale_image
 from nubrain.misc.datetime import get_formatted_current_datetime
 
 mp.set_start_method("spawn", force=True)  # Necessary on if running on windows?
@@ -20,7 +26,7 @@ def experiment(config: dict):
     # *** Get config
 
     device_type = config["device_type"]
-    lsl_stream_name = config.get("lsl_stream_name", "DSI-24")  # New config option
+    lsl_stream_name = config.get("lsl_stream_name", "DSI-24")
 
     subject_id = config["subject_id"]
     session_id = config["session_id"]
@@ -40,6 +46,9 @@ def experiment(config: dict):
 
     n_blocks = config["n_blocks"]
     images_per_block = config["images_per_block"]
+    n_target_events = config["n_target_events"]
+
+    response_window_duration = config["response_window_duration"]
 
     eeg_device_address = config.get("eeg_device_address", None)
 
@@ -58,24 +67,56 @@ def experiment(config: dict):
         raise AssertionError(f"Target file already exists: {path_out_data}")
 
     # ----------------------------------------------------------------------------------
-    # *** Get image paths
+    # *** Get input images & their categories
 
-    image_file_paths = get_all_image_paths(image_directory=image_directory)
+    images_and_categories = get_all_images(image_directory=image_directory)
 
-    if not image_file_paths:
+    if not images_and_categories:
         raise AssertionError(f"Found no images at {image_directory}")
-    print(f"Found {len(image_file_paths)} images")
+    print(f"Found {len(images_and_categories)} images")
+
+    # ----------------------------------------------------------------------------------
+    # *** Create pseudo-random condition order
+
+    # List with all unique image categories (e.g. `["apple", "banana", ...]`).
+    image_categories = list(set([x["image_category"] for x in images_and_categories]))
+
+    n_trials = n_blocks * images_per_block
+
+    # Order of image categories.
+    trial_order = create_balanced_list(
+        image_categories=image_categories,
+        target_length=n_trials,
+    )
+    random.shuffle(trial_order)
+
+    trial_order = shuffle_with_repetitions(
+        list_with_duplicates=trial_order,
+        repetitions=n_target_events,
+        minimize_runs=True,
+    )
+
+    # Mapping from image categories to image file paths, e.g. `{"apple":
+    # ["/path/to/apple_1.png", "/path/to/apple_2.png", ...], "banana":
+    # ["/path/to/banana_2.png", ...]}`.
+    category_to_filepath = {}
+    for item in images_and_categories:
+        image_category = item["image_category"]
+        image_filepath = item["image_file_path"]
+        if image_category in category_to_filepath:
+            category_to_filepath[image_category].append(image_filepath)
+        else:
+            category_to_filepath[image_category] = [image_filepath]
+
+    previous_image_file_path = None
+    previous_image_category = None
 
     # ----------------------------------------------------------------------------------
     # *** Prepare EEG measurement
 
-    # Create EEG device
     print(f"Initializing EEG device: {device_type}")
 
-    device_kwargs = {
-        "eeg_channel_mapping": eeg_channel_mapping,
-    }
-
+    device_kwargs = {"eeg_channel_mapping": eeg_channel_mapping}
     if device_type in ["cyton", "synthetic"]:
         device_kwargs["eeg_device_address"] = eeg_device_address
     elif device_type == "dsi24":
@@ -105,6 +146,12 @@ def experiment(config: dict):
     eeg_channels = device_info["eeg_channels"]
     marker_channel = device_info["marker_channel"]
     n_channels_total = device_info["n_channels_total"]
+
+    if device_type in ["cyton", "synthetic"]:
+        # For Cyton device, we need to get the number of EEG channels from the device
+        # (not sure, this might only work after starting the stream).
+        eeg_device.eeg_channels = eeg_channels
+        eeg_device.timestamp_channel = eeg_board_description["timestamp_channel"]
 
     print(f"Board: {eeg_board_description['name']}")
     print(f"Sampling Rate: {eeg_sampling_rate} Hz")
@@ -150,24 +197,23 @@ def experiment(config: dict):
         "data_logging_queue": data_logging_queue,
     }
 
-    logging_process = mp.Process(
-        target=eeg_data_logging,
-        args=(subprocess_params,),
-    )
-
-    logging_process.daemon = (
-        True  # Use lowercase 'daemon' for cross-platform compatibility
-    )
+    logging_process = mp.Process(target=eeg_data_logging, args=(subprocess_params,))
+    logging_process.daemon = True
     logging_process.start()
 
     # ----------------------------------------------------------------------------------
     # *** Start experiment
 
+    # Performance counters.
+    n_hits = 0
+    n_false_alarms = 0
+    n_total_targets = 0
+
     running = True
     while running:
         pygame.init()
 
-        # Get screen dimensions and set up full screen
+        # Get screen dimensions and set up full screen.
         screen_info = pygame.display.Info()
         screen_width = screen_info.current_w
         screen_height = screen_info.current_h
@@ -175,20 +221,9 @@ def experiment(config: dict):
             (screen_width, screen_height), pygame.FULLSCREEN
         )
         pygame.display.set_caption("Image Presentation Experiment")
-        pygame.mouse.set_visible(False)  # Hide the mouse cursor
+        pygame.mouse.set_visible(False)
 
-        font = pygame.font.Font(None, 48)  # Basic font for messages
-
-        # Load first image.
-        image_and_metadata = None
-        while image_and_metadata is None:
-            # Select a random image from the full list.
-            random_image_file_path = random.choice(image_file_paths)
-            image_and_metadata = load_and_scale_image(
-                image_file_path=random_image_file_path,
-                screen_width=screen_width,
-                screen_height=screen_height,
-            )
+        idx_trial = 0
 
         try:
             # Initial grey screen.
@@ -207,28 +242,38 @@ def experiment(config: dict):
 
             # Block loop.
             for idx_block in range(n_blocks):
-                print(f"Starting Block {idx_block + 1} out of {n_blocks}")
-
                 # Image loop (within a block).
                 for image_count in range(images_per_block):
-                    if not running:
-                        break  # Check for quit event
+                    if not running:  # Check for quit event
+                        break
 
-                    image_file_path = image_and_metadata["image_file_path"]
+                    # Sample the next image.
+                    next_image_category = trial_order[idx_trial]
+                    next_image_file_path = sample_next_image(
+                        next_image_category=next_image_category,
+                        category_to_filepath=category_to_filepath,
+                        previous_image_file_path=previous_image_file_path,
+                    )
+
+                    # Load the next image.
+                    image_and_metadata = None
+                    while image_and_metadata is None:
+                        image_and_metadata = load_and_scale_image(
+                            image_file_path=next_image_file_path,
+                            screen_width=screen_width,
+                            screen_height=screen_height,
+                        )
+
                     current_image = image_and_metadata["image"]
-                    image_category = image_and_metadata["image_category"]
 
                     img_rect = current_image.get_rect(
                         center=(screen_width // 2, screen_height // 2)
                     )
-
-                    # Display image. Clear previous screen content.
                     screen.fill(global_config.rest_condition_color)
                     screen.blit(current_image, img_rect)
                     pygame.display.flip()
+                    t_stim_start = time()  # Start of stimulus presentation.
 
-                    # Start of stimulus presentation.
-                    t1 = time()
                     # Insert stimulus start marker and get its timestamp.
                     marker_val, marker_ts = eeg_device.insert_marker(
                         global_config.stim_start_marker
@@ -242,7 +287,7 @@ def experiment(config: dict):
                             }
                         )
 
-                    # Send pre-stimulus EEG data.
+                    # Send pre-stimulus EEG data (to avoid buffer overflow).
                     eeg_data, eeg_ts = eeg_device.get_board_data()
                     if eeg_data.size > 0:
                         data_logging_queue.put(
@@ -253,15 +298,49 @@ def experiment(config: dict):
                             }
                         )
 
-                    # Time until when to show stimulus.
-                    t2 = t1 + image_duration
-                    while time() < t2:
-                        pass
+                    # Determine if the current trial is a target event.
+                    is_target_event = False
+                    if idx_trial > 0 and next_image_category == previous_image_category:
+                        is_target_event = True
+                        n_total_targets += 1
+
+                    response_made = False
+                    response_time = np.nan
+                    response_deadline = t_stim_start + response_window_duration
+
+                    # Wait for image duration, but check for responses continuously.
+                    t_stim_end_expected = t_stim_start + image_duration
+                    while time() < t_stim_end_expected:
+                        for event in pygame.event.get():
+                            if event.type == pygame.QUIT:
+                                running = False
+                            if event.type == pygame.KEYDOWN:
+                                keydown_time = time()
+                                if event.key == pygame.K_ESCAPE:
+                                    running = False
+                                # Check for space bar press within the response window.
+                                if event.key == pygame.K_SPACE and not response_made:
+                                    if keydown_time < response_deadline:
+                                        response_made = True
+                                        response_time = keydown_time - t_stim_start
+                                        print(
+                                            f"Response time: {round(response_time, 3)}"
+                                        )
+                                        if is_target_event:
+                                            # Hit.
+                                            n_hits += 1
+                                        else:
+                                            # False alarm.
+                                            n_false_alarms += 1
+                        if not running:
+                            break
+                    if not running:
+                        break
 
                     # End of stimulus presentation. Display ISI grey screen.
                     screen.fill(global_config.rest_condition_color)
                     pygame.display.flip()
-                    t3 = time()
+                    t_stim_end_actual = time()
 
                     marker_val, marker_ts = eeg_device.insert_marker(
                         global_config.stim_end_marker
@@ -276,7 +355,6 @@ def experiment(config: dict):
                         )
 
                     eeg_data, eeg_ts = eeg_device.get_board_data()
-
                     if eeg_data.size > 0:
                         data_logging_queue.put(
                             {
@@ -286,64 +364,71 @@ def experiment(config: dict):
                             }
                         )
 
-                    stimulus_data = {
-                        "stimulus_start_time": t1,
-                        "stimulus_end_time": t3,
-                        "stimulus_duration_s": t3 - t1,
-                        "image_file_path": image_file_path,
-                        "image_category": image_category,
-                    }
-
-                    data_logging_queue.put(
-                        {
-                            "type": "stimulus",
-                            "stimulus_data": stimulus_data,
-                        }
+                    # Time until when to show grey screen (ISI).
+                    t_isi_end = (
+                        t_stim_end_actual
+                        + isi_duration
+                        + np.random.uniform(low=0.0, high=isi_jitter)
                     )
 
-                    # Load next image.
-                    image_and_metadata = None
-                    while image_and_metadata is None:
-                        # Select a random image from the full list.
-                        random_image_file_path = random.choice(image_file_paths)
-                        image_and_metadata = load_and_scale_image(
-                            image_file_path=random_image_file_path,
-                            screen_width=screen_width,
-                            screen_height=screen_height,
-                        )
-
-                    # Time until when to show grey screen.
-                    t4 = t3 + isi_duration + np.random.uniform(low=0.0, high=isi_jitter)
-                    while time() < t4:
-                        pass
-
-                    # Event handling (allow quitting with ESC or window close).
-                    for event in pygame.event.get():
-                        if event.type == pygame.QUIT:
-                            running = False
-                        if event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_ESCAPE:
+                    # Continue checking for late responses or quit events.
+                    while time() < t_isi_end:
+                        for event in pygame.event.get():
+                            if event.type == pygame.QUIT:
                                 running = False
-
+                            if event.type == pygame.KEYDOWN:
+                                keydown_time = time()
+                                if event.key == pygame.K_ESCAPE:
+                                    running = False
+                                # Still check for spacebar presses that are within the
+                                # response window for target events.
+                                if event.key == pygame.K_SPACE and not response_made:
+                                    if keydown_time < response_deadline:
+                                        response_made = True
+                                        response_time = keydown_time - t_stim_start
+                                        print(
+                                            f"Response time: {round(response_time, 3)}"
+                                        )
+                                        if is_target_event:
+                                            # Hit.
+                                            n_hits += 1
+                                        else:
+                                            # False alarm.
+                                            n_false_alarms += 1
+                        if not running:
+                            break
                     if not running:
                         break
+
+                    stimulus_data = {
+                        "stimulus_start_time": t_stim_start,
+                        "stimulus_end_time": t_stim_end_actual,
+                        "stimulus_duration_s": t_stim_end_actual - t_stim_start,
+                        "image_file_path": next_image_file_path,
+                        "image_category": next_image_category,
+                        "is_target_event": is_target_event,
+                        "response_time_s": response_time,
+                    }
+                    data_logging_queue.put(
+                        {"type": "stimulus", "stimulus_data": stimulus_data}
+                    )
+
+                    # Update tracking variables for the next loop iteration.
+                    previous_image_file_path = next_image_file_path
+                    previous_image_category = next_image_category
+                    idx_trial += 1
 
                 if not running:
                     break
 
-                # Send post-stimulus board data (to avoid buffer overflow).
+                # Send post-stimulus EEG data (to avoid buffer overflow).
                 eeg_data, eeg_ts = eeg_device.get_board_data()
                 if eeg_data.size > 0:
                     data_logging_queue.put(
-                        {
-                            "type": "eeg",
-                            "eeg_data": eeg_data,
-                            "eeg_timestamps": eeg_ts,
-                        }
+                        {"type": "eeg", "eeg_data": eeg_data, "eeg_timestamps": eeg_ts}
                     )
 
                 # Inter-block grey screen.
-                print(f"End of Block {idx_block + 1}. Starting inter-block interval.")
                 screen.fill(global_config.rest_condition_color)
                 pygame.display.flip()
                 # We already waited for the ISI duration, therefore subtract it from the
@@ -352,16 +437,59 @@ def experiment(config: dict):
                 remaining_wait = max((inter_block_grey_duration - isi_duration), 0.0)
                 pygame.time.delay(int(round(remaining_wait * 1000.0)))
 
-            # End of experiment.
-            if running:  # Only show if not quit early
+            # Calculate behavioural results.
+            n_misses = n_total_targets - n_hits
+
+            # Write behavioural results to hdf5 file.
+            behavioural_data = {
+                "n_total_targets": n_total_targets,
+                "n_hits": n_hits,
+                "n_misses": n_misses,
+                "n_false_alarms": n_false_alarms,
+            }
+            data_logging_queue.put(
+                {"type": "behavioural", "behavioural_data": behavioural_data}
+            )
+
+            if running:
+                # Display behavioural results.
                 screen.fill(global_config.rest_condition_color)
-                end_text = font.render("Experiment complete.", True, (0.0, 0.0, 0.0))
-                text_rect = end_text.get_rect(
-                    center=(screen_width // 2, screen_height // 2)
+
+                # Behavioural results title.
+                title_font = pygame.font.Font(None, 72)
+                title_text = title_font.render("Experiment Complete", True, (0, 0, 0))
+                title_rect = title_text.get_rect(
+                    center=(screen_width // 2, screen_height // 2 - 150)
                 )
-                screen.blit(end_text, text_rect)
+                screen.blit(title_text, title_rect)
+
+                # Behavioural results text.
+                results_font = pygame.font.Font(None, 56)
+                hits_text = results_font.render(f"Hits: {n_hits}", True, (0, 0, 0))
+                misses_text = results_font.render(
+                    f"Misses: {n_misses}", True, (0, 0, 0)
+                )
+                false_alarms_text = results_font.render(
+                    f"False Alarms: {n_false_alarms}", True, (0, 0, 0)
+                )
+
+                # Position and display results
+                hits_rect = hits_text.get_rect(
+                    center=(screen_width // 2, screen_height // 2 - 20)
+                )
+                misses_rect = misses_text.get_rect(
+                    center=(screen_width // 2, screen_height // 2 + 40)
+                )
+                false_alarms_rect = false_alarms_text.get_rect(
+                    center=(screen_width // 2, screen_height // 2 + 100)
+                )
+
+                screen.blit(hits_text, hits_rect)
+                screen.blit(misses_text, misses_rect)
+                screen.blit(false_alarms_text, false_alarms_rect)
+
                 pygame.display.flip()
-                pygame.time.wait(500)
+                pygame.time.wait(5000)  # Show results for 5 seconds
 
             running = False
 
@@ -369,15 +497,12 @@ def experiment(config: dict):
             eeg_data, eeg_ts = eeg_device.get_board_data()
             if eeg_data.size > 0:
                 data_logging_queue.put(
-                    {
-                        "type": "eeg",
-                        "eeg_data": eeg_data,
-                        "eeg_timestamps": eeg_ts,
-                    }
+                    {"type": "eeg", "eeg_data": eeg_data, "eeg_timestamps": eeg_ts}
                 )
 
         except Exception as e:
             print(f"An error occurred during the experiment: {e}")
+            print(traceback.format_exc())
             running = False
         finally:
             pygame.quit()
@@ -386,7 +511,6 @@ def experiment(config: dict):
     eeg_device.stop_stream()
     eeg_device.release_session()
 
-    # Join process for sending data.
     print("Join process for sending data")
     data_logging_queue.put(None)
     logging_process.join()
