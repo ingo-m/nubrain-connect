@@ -126,6 +126,11 @@ class EegExperimentConfig:
                 "eeg_device_address must be provided when using Cyton device"
             )
 
+        # Ensure that the response window (in which the participant to an attention task
+        # target event counts as a hit) end before the next trial.
+        if (self.image_duration + self.isi_duration) < self.response_window_duration:
+            raise ValueError("Response window is longer than trial duration")
+
         print("Configuration successfully loaded and validated.")
 
 

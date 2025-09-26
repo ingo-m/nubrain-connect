@@ -199,7 +199,6 @@ def experiment(config: dict):
 
     # Performance counters.
     n_hits = 0
-    n_misses = 0
     n_false_alarms = 0
     n_total_targets = 0
 
@@ -216,7 +215,6 @@ def experiment(config: dict):
         )
         pygame.display.set_caption("Image Presentation Experiment")
         pygame.mouse.set_visible(False)
-        font = pygame.font.Font(None, 48)
 
         idx_trial = 0
 
@@ -302,6 +300,7 @@ def experiment(config: dict):
                         n_total_targets += 1
 
                     response_made = False
+                    response_time = np.nan
                     response_deadline = t_stim_start + response_window
 
                     # Wait for image duration, but check for responses continuously.
@@ -311,12 +310,14 @@ def experiment(config: dict):
                             if event.type == pygame.QUIT:
                                 running = False
                             if event.type == pygame.KEYDOWN:
+                                keydown_time = time()
                                 if event.key == pygame.K_ESCAPE:
                                     running = False
                                 # Check for space bar press within the response window.
                                 if event.key == pygame.K_SPACE and not response_made:
-                                    if time() < response_deadline:
+                                    if keydown_time < response_deadline:
                                         response_made = True
+                                        response_time = keydown_time - t_stim_start
                                         if is_target_event:
                                             # Hit.
                                             n_hits += 1
@@ -355,23 +356,6 @@ def experiment(config: dict):
                             }
                         )
 
-                    stimulus_data = {
-                        "stimulus_start_time": t_stim_start,
-                        "stimulus_end_time": t_stim_end_actual,
-                        "stimulus_duration_s": t_stim_end_actual - t_stim_start,
-                        "image_file_path": next_image_file_path,
-                        "image_category": next_image_category,
-                        "is_target_event": is_target_event,
-                    }
-                    data_logging_queue.put(
-                        {"type": "stimulus", "stimulus_data": stimulus_data}
-                    )
-
-                    # Update tracking variables for the next loop iteration.
-                    previous_image_file_path = next_image_file_path
-                    previous_image_category = next_image_category
-                    idx_trial += 1
-
                     # Time until when to show grey screen (ISI).
                     t_isi_end = (
                         t_stim_end_actual
@@ -385,13 +369,15 @@ def experiment(config: dict):
                             if event.type == pygame.QUIT:
                                 running = False
                             if event.type == pygame.KEYDOWN:
+                                keydown_time = time()
                                 if event.key == pygame.K_ESCAPE:
                                     running = False
                                 # Still check for spacebar presses that are within the
                                 # response window for target events.
                                 if event.key == pygame.K_SPACE and not response_made:
-                                    if time() < response_deadline:
+                                    if keydown_time < response_deadline:
                                         response_made = True
+                                        response_time = keydown_time - t_stim_start
                                         if is_target_event:
                                             # Hit.
                                             n_hits += 1
@@ -402,6 +388,24 @@ def experiment(config: dict):
                             break
                     if not running:
                         break
+
+                    stimulus_data = {
+                        "stimulus_start_time": t_stim_start,
+                        "stimulus_end_time": t_stim_end_actual,
+                        "stimulus_duration_s": t_stim_end_actual - t_stim_start,
+                        "image_file_path": next_image_file_path,
+                        "image_category": next_image_category,
+                        "is_target_event": is_target_event,
+                        "response_time_s": response_time,
+                    }
+                    data_logging_queue.put(
+                        {"type": "stimulus", "stimulus_data": stimulus_data}
+                    )
+
+                    # Update tracking variables for the next loop iteration.
+                    previous_image_file_path = next_image_file_path
+                    previous_image_category = next_image_category
+                    idx_trial += 1
 
                 if not running:
                     break
@@ -423,11 +427,22 @@ def experiment(config: dict):
                 remaining_wait = max((inter_block_grey_duration - isi_duration), 0.0)
                 pygame.time.delay(int(round(remaining_wait * 1000.0)))
 
-            # Calculate misses and display final results.
-            if running:
-                # A miss is a target event where the participant did not respond.
-                n_misses = n_total_targets - n_hits
+            # Calculate behavioural results.
+            n_misses = n_total_targets - n_hits
 
+            # Write behavioural results to hdf5 file.
+            behavioural_data = {
+                "n_total_targets": n_total_targets,
+                "n_hits": n_hits,
+                "n_misses": n_misses,
+                "n_false_alarms": n_false_alarms,
+            }
+            data_logging_queue.put(
+                {"type": "behavioural", "behavioural_data": behavioural_data}
+            )
+
+            if running:
+                # Display behavioural results.
                 screen.fill(global_config.rest_condition_color)
 
                 # Behavioural results title.
