@@ -1,6 +1,7 @@
 import multiprocessing as mp
 import os
 import random
+import traceback
 from time import sleep, time
 
 import numpy as np
@@ -47,7 +48,7 @@ def experiment(config: dict):
     images_per_block = config["images_per_block"]
     n_target_events = config["n_target_events"]
 
-    response_window = config["response_window"]
+    response_window_duration = config["response_window_duration"]
 
     eeg_device_address = config.get("eeg_device_address", None)
 
@@ -146,6 +147,12 @@ def experiment(config: dict):
     marker_channel = device_info["marker_channel"]
     n_channels_total = device_info["n_channels_total"]
 
+    if device_type in ["cyton", "synthetic"]:
+        # For Cyton device, we need to get the number of EEG channels from the device
+        # (not sure, this might only work after starting the stream).
+        eeg_device.eeg_channels = eeg_channels
+        eeg_device.timestamp_channel = eeg_board_description["timestamp_channel"]
+
     print(f"Board: {eeg_board_description['name']}")
     print(f"Sampling Rate: {eeg_sampling_rate} Hz")
     print(f"EEG Channels: {eeg_channels}")
@@ -235,8 +242,6 @@ def experiment(config: dict):
 
             # Block loop.
             for idx_block in range(n_blocks):
-                print(f"Starting Block {idx_block + 1} out of {n_blocks}")
-
                 # Image loop (within a block).
                 for image_count in range(images_per_block):
                     if not running:  # Check for quit event
@@ -301,7 +306,7 @@ def experiment(config: dict):
 
                     response_made = False
                     response_time = np.nan
-                    response_deadline = t_stim_start + response_window
+                    response_deadline = t_stim_start + response_window_duration
 
                     # Wait for image duration, but check for responses continuously.
                     t_stim_end_expected = t_stim_start + image_duration
@@ -318,6 +323,9 @@ def experiment(config: dict):
                                     if keydown_time < response_deadline:
                                         response_made = True
                                         response_time = keydown_time - t_stim_start
+                                        print(
+                                            f"Response time: {round(response_time, 3)}"
+                                        )
                                         if is_target_event:
                                             # Hit.
                                             n_hits += 1
@@ -378,6 +386,9 @@ def experiment(config: dict):
                                     if keydown_time < response_deadline:
                                         response_made = True
                                         response_time = keydown_time - t_stim_start
+                                        print(
+                                            f"Response time: {round(response_time, 3)}"
+                                        )
                                         if is_target_event:
                                             # Hit.
                                             n_hits += 1
@@ -418,7 +429,6 @@ def experiment(config: dict):
                     )
 
                 # Inter-block grey screen.
-                print(f"End of Block {idx_block + 1}. Starting inter-block interval.")
                 screen.fill(global_config.rest_condition_color)
                 pygame.display.flip()
                 # We already waited for the ISI duration, therefore subtract it from the
@@ -492,6 +502,7 @@ def experiment(config: dict):
 
         except Exception as e:
             print(f"An error occurred during the experiment: {e}")
+            print(traceback.format_exc())
             running = False
         finally:
             pygame.quit()

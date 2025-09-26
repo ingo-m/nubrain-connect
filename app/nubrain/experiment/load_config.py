@@ -41,9 +41,9 @@ class EegExperimentConfig:
     response_window_duration: float
 
     device_type: str
-    lsl_stream_name: str = "DSI-24"  # Default value
+    lsl_stream_name: Optional[str] = "DSI-24"
 
-    eeg_device_address: Optional[str] = None  # Optional with default None
+    eeg_device_address: Optional[str] = None
 
     # Use default_factory for mutable types
     eeg_channel_mapping: Optional[Dict[int, str]] = field(default_factory=dict)

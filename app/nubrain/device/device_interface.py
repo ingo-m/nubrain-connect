@@ -36,7 +36,7 @@ class EEGDeviceInterface(ABC):
         pass
 
     @abstractmethod
-    def get_board_data(self) -> np.ndarray:
+    def get_board_data(self) -> tuple[np.ndarray, np.ndarray]:
         pass
 
     @abstractmethod
@@ -57,6 +57,7 @@ class BrainFlowDevice(EEGDeviceInterface):
 
     def __init__(
         self,
+        *,
         board_id: int,
         params: BrainFlowInputParams,
         eeg_channel_mapping: Dict[int, str],
@@ -81,11 +82,15 @@ class BrainFlowDevice(EEGDeviceInterface):
     def stop_stream(self):
         self.board.stop_stream()
 
-    def get_board_data(self) -> np.ndarray:
-        return self.board.get_board_data()
+    def get_board_data(self) -> tuple[np.ndarray, np.ndarray]:
+        board_data = self.board.get_board_data()
+        # eeg_data = board_data[self.eeg_channels, :]
+        timestamp_channel = board_data[self.timestamp_channel, :]
+        return board_data, timestamp_channel
 
     def insert_marker(self, marker: float):
         self.board.insert_marker(marker)
+        return None, None
 
     def release_session(self):
         self.board.release_session()
@@ -114,6 +119,7 @@ class DSI24Device(EEGDeviceInterface):
 
     def __init__(
         self,
+        *,
         lsl_stream_name: str = "DSI-24",
         eeg_channel_mapping: Optional[Dict[int, str]] = None,
     ):
@@ -329,16 +335,19 @@ def create_eeg_device(device_type: str, **kwargs) -> EEGDeviceInterface:
         )
     elif device_type == "synthetic":
         params = BrainFlowInputParams()
+        params.serial_port = kwargs["eeg_device_address"]
         return BrainFlowDevice(
-            BoardIds.SYNTHETIC_BOARD.value,
-            params,
-            kwargs.get("eeg_channel_mapping", {}),
+            board_id=BoardIds.SYNTHETIC_BOARD.value,
+            params=params,
+            eeg_channel_mapping=kwargs["eeg_channel_mapping"],
         )
     elif device_type == "cyton":
         params = BrainFlowInputParams()
-        params.serial_port = kwargs.get("eeg_device_address", "")
+        params.serial_port = kwargs["eeg_device_address"]
         return BrainFlowDevice(
-            BoardIds.CYTON_BOARD.value, params, kwargs.get("eeg_channel_mapping", {})
+            board_id=BoardIds.CYTON_BOARD.value,
+            params=params,
+            eeg_channel_mapping=kwargs["eeg_channel_mapping"],
         )
     else:
         raise ValueError(f"Unknown device type: {device_type}")
