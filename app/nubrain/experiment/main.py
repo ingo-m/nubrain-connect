@@ -11,6 +11,7 @@ from nubrain.experiment.data import eeg_data_logging
 from nubrain.experiment.global_config import GlobalConfig
 from nubrain.experiment.randomize_conditions import (
     create_balanced_list,
+    sample_next_image,
     shuffle_with_repetitions,
 )
 from nubrain.image.tools import get_all_images, load_and_scale_image
@@ -91,6 +92,21 @@ def experiment(config: dict):
         repetitions=n_target_events,
         minimize_runs=True,
     )
+
+    # Mapping from image categories to image file paths, e.g. `{"apple":
+    # ["/path/to/apple_1.png", "/path/to/apple_2.png", ...], "banana":
+    # ["/path/to/banana_2.png", ...]}`.
+    category_to_filepath = {}
+    for item in images_and_categories:
+        image_category = item["image_category"]
+        image_filepath = item["image_file_path"]
+        if image_category in category_to_filepath:
+            category_to_filepath[image_category].append(image_filepath)
+        else:
+            category_to_filepath[image_category] = [image_filepath]
+
+    previous_image_file_path = None
+    previous_image_category = None
 
     # ----------------------------------------------------------------------------------
     # *** Prepare EEG measurement
@@ -205,16 +221,32 @@ def experiment(config: dict):
 
         font = pygame.font.Font(None, 48)  # Basic font for messages
 
+        # Select a random image from the list of images corresponding to the current
+        # image category.
+        idx_trial = 0
+        next_image_category = trial_order[idx_trial]
+        next_image_file_path = sample_next_image(
+            next_image_category=next_image_category,
+            category_to_filepath=category_to_filepath,
+            previous_image_file_path=previous_image_file_path,
+        )
+
         # Load first image.
         image_and_metadata = None
         while image_and_metadata is None:
-            # Select a random image from the full list.
-            random_image_file_path = random.choice(image_file_paths)
             image_and_metadata = load_and_scale_image(
-                image_file_path=random_image_file_path,
+                image_file_path=next_image_file_path,
                 screen_width=screen_width,
                 screen_height=screen_height,
             )
+
+        previous_image_file_path = next_image_file_path
+        previous_image_category = next_image_category
+        idx_trial += 1
+
+        # First image cannot be a target event (image category repetition) by
+        # definition.
+        target_event = False
 
         try:
             # Initial grey screen.
@@ -268,7 +300,7 @@ def experiment(config: dict):
                             }
                         )
 
-                    # Send pre-stimulus EEG data.
+                    # Send pre-stimulus EEG data (to avoid buffer overflow).
                     eeg_data, eeg_ts = eeg_device.get_board_data()
                     if eeg_data.size > 0:
                         data_logging_queue.put(
@@ -278,6 +310,9 @@ def experiment(config: dict):
                                 "eeg_timestamps": eeg_ts,
                             }
                         )
+
+                    # TODO: Capture participant's response in case of target event.
+                    # Capture hits, misses, and false positives.
 
                     # Time until when to show stimulus.
                     t2 = t1 + image_duration
@@ -327,16 +362,31 @@ def experiment(config: dict):
                         }
                     )
 
+                    # Select a random image from the list of images corresponding to the
+                    # current image category.
+                    next_image_category = trial_order[idx_trial]
+                    next_image_file_path = sample_next_image(
+                        next_image_category=next_image_category,
+                        category_to_filepath=category_to_filepath,
+                        previous_image_file_path=previous_image_file_path,
+                    )
+
                     # Load next image.
                     image_and_metadata = None
                     while image_and_metadata is None:
-                        # Select a random image from the full list.
-                        random_image_file_path = random.choice(image_file_paths)
                         image_and_metadata = load_and_scale_image(
-                            image_file_path=random_image_file_path,
+                            image_file_path=next_image_file_path,
                             screen_width=screen_width,
                             screen_height=screen_height,
                         )
+
+                    previous_image_file_path = next_image_file_path
+                    if previous_image_category == next_image_category:
+                        target_event = True
+                    else:
+                        target_event = False
+                    previous_image_category = next_image_category
+                    idx_trial += 1
 
                     # Time until when to show grey screen.
                     t4 = t3 + isi_duration + np.random.uniform(low=0.0, high=isi_jitter)

@@ -282,3 +282,18 @@ def create_balanced_list(*, image_categories: list, target_length: int):
         result.extend([string] * count)
 
     return result
+
+
+def sample_next_image(
+    *,
+    next_image_category: str,
+    category_to_filepath: dict,
+    previous_image_file_path: str | None,
+):
+    while True:
+        next_image_file_path = random.choice(category_to_filepath[next_image_category])
+        if previous_image_file_path == next_image_file_path:
+            print("Sampled same image twice in a row, will try again")
+        else:
+            break
+    return next_image_file_path
