@@ -22,6 +22,7 @@ class EegExperimentConfig:
     session_id: str
 
     output_directory: str
+    output_dir_images: str
     image_directory: str
 
     utility_frequency: float
