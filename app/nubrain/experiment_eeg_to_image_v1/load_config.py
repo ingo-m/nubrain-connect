@@ -129,11 +129,6 @@ class EegExperimentConfig:
                 "eeg_device_address must be provided when using Cyton device"
             )
 
-        # Ensure that the response window (in which the participant to an attention task
-        # target event counts as a hit) end before the next trial.
-        if (self.image_duration + self.isi_duration) < self.response_window_duration:
-            raise ValueError("Response window is longer than trial duration")
-
         # Introduce an (arbitrary) upper limit to the number of target events:
         if (self.n_blocks * self.images_per_block * 0.5) <= self.n_target_events:
             ValueError("Too many target events")
