@@ -129,12 +129,6 @@ class EegExperimentConfig:
                 "eeg_device_address must be provided when using Cyton device"
             )
 
-        # Introduce an (arbitrary) upper limit to the number of target events:
-        if (self.n_blocks * self.images_per_block * 0.5) <= self.n_target_events:
-            ValueError("Too many target events")
-        elif self.n_target_events < 0:
-            ValueError("Negativ number of target events")
-
         print("Configuration successfully loaded and validated.")
 
 
