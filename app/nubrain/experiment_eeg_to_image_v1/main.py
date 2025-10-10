@@ -399,6 +399,8 @@ def experiment_eeg_to_image_v1(config: dict):
                         "stimulus_duration_s": t_stim_end_actual - t_stim_start,
                         "image_file_path": next_image_file_path,
                         "image_category": next_image_category,
+                        "is_target_event": False,  # Dummy values, TODO: data logging for eeg-to-image
+                        "response_time_s": 0.0,  # Dummy values, TODO: data logging for eeg-to-image
                     }
                     data_logging_queue.put(
                         {"type": "stimulus", "stimulus_data": stimulus_data}
@@ -491,6 +493,7 @@ def experiment_eeg_to_image_v1(config: dict):
                     )
                     screen.fill(global_config.rest_condition_color)
                     screen.blit(generated_image, img_rect)
+                    pygame.display.flip()
 
                     # Show generated image for this amount of time.
                     t_generated_img_end = time() + generated_image_duration
