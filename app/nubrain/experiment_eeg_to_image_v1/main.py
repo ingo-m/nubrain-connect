@@ -191,7 +191,7 @@ def experiment_eeg_to_image_v1(config: dict):
         # Timing parameters
         "initial_rest_duration": initial_rest_duration,
         "image_duration": image_duration,
-        "isi_duration": isi_duration,
+        "isi_duration": 0.0,  # Dummy value. TODO: Adjust logging for live eeg-to-image
         "inter_block_grey_duration": inter_block_grey_duration,
         # Experiment structure
         "n_blocks": n_blocks,
@@ -492,12 +492,8 @@ def experiment_eeg_to_image_v1(config: dict):
                     screen.fill(global_config.rest_condition_color)
                     screen.blit(generated_image, img_rect)
 
-                    # Show generated image for this amount of time. Includes the jitter.
-                    t_generated_img_end = (
-                        time()
-                        + generated_image_duration
-                        + np.random.uniform(low=0.0, high=isi_jitter)
-                    )
+                    # Show generated image for this amount of time.
+                    t_generated_img_end = time() + generated_image_duration
 
                     # Insert stimulus start marker and get its timestamp.
                     generated_img_start_marker = 3.0  # Hardcoded TODO make config param
@@ -580,10 +576,9 @@ def experiment_eeg_to_image_v1(config: dict):
                 # Inter-block grey screen.
                 screen.fill(global_config.rest_condition_color)
                 pygame.display.flip()
-                # We already waited for the ISI duration, therefore subtract it from the
-                # inter block duration. Avoid negative value in case ISI duration is
-                # longer than inter block duration.
-                remaining_wait = max((inter_block_grey_duration - isi_duration), 0.0)
+                remaining_wait = inter_block_grey_duration + np.random.uniform(
+                    low=0.0, high=isi_jitter
+                )
                 pygame.time.delay(int(round(remaining_wait * 1000.0)))
 
             running = False
