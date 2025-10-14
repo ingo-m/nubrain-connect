@@ -5,4 +5,4 @@ from . import data, global_config, load_config, randomize_conditions
 try:
     from . import main
 except Exception as e:
-    print(f"Failed to import nubrain main model: {e}")
+    print(f"Failed to import nubrain main module: {e}")
