@@ -265,10 +265,6 @@ def experiment_eeg_to_image_v1(config: dict):
                 int(round((initial_rest_duration - tone_pre_stimulus_onset) * 1000.0))
             )
 
-            # Play tone to cue experiment start.
-            pure_tone.play()
-            pygame.time.delay(int(round(tone_pre_stimulus_onset * 1000.0)))
-
             # Clear board buffer.
             _, _ = eeg_device.get_board_data()
 
@@ -300,6 +296,14 @@ def experiment_eeg_to_image_v1(config: dict):
                 # Play tone to cue block start.
                 pure_tone.play()
                 pygame.time.delay(int(round(tone_pre_stimulus_onset * 1000.0)))
+
+                eeg_data = []
+                eeg_timestamps = []
+
+                # `marker_data` is an array of shape [2, n_timepoints], where the [0, :]
+                # corresponds to timestamps, and [1, :] corresponds to the marker values
+                # (represented as a nested list here).
+                marker_data = np.zeros((2, (images_per_block * 2)))
 
                 # Image loop (within a block).
                 for image_count in range(images_per_block):
@@ -350,6 +354,8 @@ def experiment_eeg_to_image_v1(config: dict):
                                 "timestamp": marker_ts_stim_start,
                             }
                         )
+                    marker_data[0, (image_count * 2)] = marker_ts_stim_start
+                    marker_data[1, (image_count * 2)] = marker_val_stim_start
 
                     # Send pre-stimulus EEG data (to avoid buffer overflow).
                     eeg_data_pre_stim, eeg_ts_pre_stim = eeg_device.get_board_data()
@@ -361,6 +367,8 @@ def experiment_eeg_to_image_v1(config: dict):
                                 "eeg_timestamps": eeg_ts_pre_stim,
                             }
                         )
+                    eeg_data.append(eeg_data_pre_stim)
+                    eeg_timestamps.append(eeg_ts_pre_stim)
 
                     # Wait for image duration, but check for responses continuously.
                     t_stim_end_expected = t_stim_start + image_duration
@@ -395,6 +403,8 @@ def experiment_eeg_to_image_v1(config: dict):
                                 "timestamp": marker_ts_stim_end,
                             }
                         )
+                    marker_data[0, ((image_count * 2) + 1)] = marker_ts_stim_end
+                    marker_data[1, ((image_count * 2) + 1)] = marker_val_stim_end
 
                     eeg_data_stim, eeg_ts_stim = eeg_device.get_board_data()
                     if eeg_data_stim.size > 0:
@@ -405,6 +415,8 @@ def experiment_eeg_to_image_v1(config: dict):
                                 "eeg_timestamps": eeg_ts_stim,
                             }
                         )
+                    eeg_data.append(eeg_data_stim)
+                    eeg_timestamps.append(eeg_ts_stim)
 
                     # Wait until the end of the post-stimulus period
                     t_post_stim_end = t_stim_end_actual + post_stimulus_interval
@@ -429,6 +441,8 @@ def experiment_eeg_to_image_v1(config: dict):
                                 "eeg_timestamps": eeg_ts_post_stim,
                             }
                         )
+                    eeg_data.append(eeg_data_post_stim)
+                    eeg_timestamps.append(eeg_ts_post_stim)
 
                     # ------------------------------------------------------------------
                     # *** Log stimulus metadata
@@ -446,157 +460,142 @@ def experiment_eeg_to_image_v1(config: dict):
                         {"type": "stimulus", "stimulus_data": stimulus_data}
                     )
 
-                    # ------------------------------------------------------------------
-                    # *** Inference
+                # ----------------------------------------------------------------------
+                # *** Inference
 
-                    eeg_data = np.concatenate(
-                        [eeg_data_pre_stim, eeg_data_stim, eeg_data_post_stim],
-                        axis=1,
+                eeg_data = np.concatenate(eeg_data, axis=1)
+
+                eeg_timestamps = np.concatenate(eeg_timestamps)
+
+                request_dict = {
+                    "eeg_data": eeg_data.tolist(),
+                    "eeg_timestamps": eeg_timestamps.tolist(),
+                    "marker_data": marker_data.tolist(),
+                    "utility_frequency": utility_frequency,
+                    "eeg_channel_mapping": eeg_channel_mapping,
+                }
+
+                request_json = json.dumps(request_dict)
+
+                response = requests.post(
+                    url=api_endpoint,
+                    data=request_json,
+                )
+
+                time_now = get_formatted_current_datetime()
+                true_image_category = next_image_category
+
+                if response.status_code == 200:
+                    eeg_model_id = response.headers.get("X-eeg-model-id")
+
+                    path_image_out = os.path.join(
+                        output_dir_images,
+                        f"{eeg_model_id}_{time_now}_{true_image_category}.png",
                     )
 
-                    eeg_timestamps = np.concatenate(
-                        [eeg_ts_pre_stim, eeg_ts_stim, eeg_ts_post_stim]
+                    with open(path_image_out, "wb") as f:
+                        f.write(response.content)
+                else:
+                    print(f"Error: {response.status_code}")
+                    print(response.text)
+                    running = False
+                    break
+
+                # ----------------------------------------------------------------------
+                # *** Show generated image
+
+                generated_image_and_metadata = load_and_scale_image(
+                    image_file_path=path_image_out,
+                    screen_width=screen_width,
+                    screen_height=screen_height,
+                )
+
+                generated_image = generated_image_and_metadata["image"]
+
+                img_rect = current_image.get_rect(
+                    center=(screen_width // 2, screen_height // 2)
+                )
+                screen.fill(global_config.rest_condition_color)
+                screen.blit(generated_image, img_rect)
+                pygame.display.flip()
+
+                # Show generated image for this amount of time.
+                t_generated_img_end = time() + generated_image_duration
+
+                # Insert stimulus start marker and get its timestamp.
+                generated_img_start_marker = 3.0  # Hardcoded TODO make config param
+                marker_val_stim_start, marker_ts_stim_start = eeg_device.insert_marker(
+                    generated_img_start_marker
+                )
+                if marker_val_stim_start is not None:
+                    data_logging_queue.put(
+                        {
+                            "type": "marker",
+                            "marker_value": marker_val_stim_start,
+                            "timestamp": marker_ts_stim_start,
+                        }
                     )
 
-                    # `marker_data` is an array of shape [2, n_timepoints], where the
-                    # [0, :] corresponds to timestamps, and [1, :] corresponds to the
-                    # marker values (represented as a nested list here).
-                    marker_data = np.array(
-                        [
-                            [marker_ts_stim_start, marker_ts_stim_end],
-                            [marker_val_stim_start, marker_val_stim_end],
-                        ]
-                    )
-
-                    request_dict = {
-                        "eeg_data": eeg_data.tolist(),
-                        "eeg_timestamps": eeg_timestamps.tolist(),
-                        "marker_data": marker_data.tolist(),
-                        "utility_frequency": utility_frequency,
-                        "eeg_channel_mapping": eeg_channel_mapping,
-                    }
-
-                    request_json = json.dumps(request_dict)
-
-                    response = requests.post(
-                        url=api_endpoint,
-                        data=request_json,
-                    )
-
-                    time_now = get_formatted_current_datetime()
-                    true_image_category = next_image_category
-
-                    if response.status_code == 200:
-                        eeg_model_id = response.headers.get("X-eeg-model-id")
-
-                        path_image_out = os.path.join(
-                            output_dir_images,
-                            f"{eeg_model_id}_{time_now}_{true_image_category}.png",
-                        )
-
-                        with open(path_image_out, "wb") as f:
-                            f.write(response.content)
-                    else:
-                        print(f"Error: {response.status_code}")
-                        print(response.text)
-                        running = False
-                        break
-
-                    # ------------------------------------------------------------------
-                    # *** Log EEG data (to avoid buffer overflow)
-
-                    # Log data from the interval when waiting for inference results.
-
-                    eeg_data_wait, eeg_ts_wait = eeg_device.get_board_data()
-                    if eeg_data_wait.size > 0:
-                        data_logging_queue.put(
-                            {
-                                "type": "eeg",
-                                "eeg_data": eeg_data_wait,
-                                "eeg_timestamps": eeg_ts_wait,
-                            }
-                        )
-
-                    # ------------------------------------------------------------------
-                    # *** Show generated image
-
-                    generated_image_and_metadata = load_and_scale_image(
-                        image_file_path=path_image_out,
-                        screen_width=screen_width,
-                        screen_height=screen_height,
-                    )
-
-                    generated_image = generated_image_and_metadata["image"]
-
-                    img_rect = current_image.get_rect(
-                        center=(screen_width // 2, screen_height // 2)
-                    )
-                    screen.fill(global_config.rest_condition_color)
-                    screen.blit(generated_image, img_rect)
-                    pygame.display.flip()
-
-                    # Show generated image for this amount of time.
-                    t_generated_img_end = time() + generated_image_duration
-
-                    # Insert stimulus start marker and get its timestamp.
-                    generated_img_start_marker = 3.0  # Hardcoded TODO make config param
-                    marker_val_stim_start, marker_ts_stim_start = (
-                        eeg_device.insert_marker(generated_img_start_marker)
-                    )
-                    if marker_val_stim_start is not None:
-                        data_logging_queue.put(
-                            {
-                                "type": "marker",
-                                "marker_value": marker_val_stim_start,
-                                "timestamp": marker_ts_stim_start,
-                            }
-                        )
-
-                    while time() < t_generated_img_end:
-                        for event in pygame.event.get():
-                            if event.type == pygame.QUIT:
+                while time() < t_generated_img_end:
+                    for event in pygame.event.get():
+                        if event.type == pygame.QUIT:
+                            running = False
+                        if event.type == pygame.KEYDOWN:
+                            if event.key == pygame.K_ESCAPE:
                                 running = False
-                            if event.type == pygame.KEYDOWN:
-                                if event.key == pygame.K_ESCAPE:
-                                    running = False
-                        if not running:
-                            break
                     if not running:
                         break
+                if not running:
+                    break
 
-                    # ------------------------------------------------------------------
-                    # *** Grey screen (after generated image)
+                # ----------------------------------------------------------------------
+                # *** Log EEG data (to avoid buffer overflow)
 
-                    # End of generated image presentation. Display grey screen.
-                    screen.fill(global_config.rest_condition_color)
-                    pygame.display.flip()
+                # Log data from the interval when waiting for inference results.
 
-                    # Insert stimulus start marker and get its timestamp.
-                    generated_img_end_marker = 4.0  # Hardcoded TODO make config param
-                    marker_val_stim_end, marker_ts_stim_end = eeg_device.insert_marker(
-                        generated_img_end_marker
+                eeg_data_wait, eeg_ts_wait = eeg_device.get_board_data()
+                if eeg_data_wait.size > 0:
+                    data_logging_queue.put(
+                        {
+                            "type": "eeg",
+                            "eeg_data": eeg_data_wait,
+                            "eeg_timestamps": eeg_ts_wait,
+                        }
                     )
-                    if marker_val_stim_end is not None:
-                        data_logging_queue.put(
-                            {
-                                "type": "marker",
-                                "marker_value": marker_val_stim_end,
-                                "timestamp": marker_ts_stim_end,
-                            }
-                        )
 
-                    # ------------------------------------------------------------------
-                    # *** Log EEG data (to avoid buffer overflow)
+                # ----------------------------------------------------------------------
+                # *** Grey screen (after generated image)
 
-                    eeg_data_gen_img, eeg_ts_gen_img = eeg_device.get_board_data()
-                    if eeg_data_gen_img.size > 0:
-                        data_logging_queue.put(
-                            {
-                                "type": "eeg",
-                                "eeg_data": eeg_data_gen_img,
-                                "eeg_timestamps": eeg_ts_gen_img,
-                            }
-                        )
+                # End of generated image presentation. Display grey screen.
+                screen.fill(global_config.rest_condition_color)
+                pygame.display.flip()
+
+                # Insert stimulus start marker and get its timestamp.
+                generated_img_end_marker = 4.0  # Hardcoded TODO make config param
+                marker_val_stim_end, marker_ts_stim_end = eeg_device.insert_marker(
+                    generated_img_end_marker
+                )
+                if marker_val_stim_end is not None:
+                    data_logging_queue.put(
+                        {
+                            "type": "marker",
+                            "marker_value": marker_val_stim_end,
+                            "timestamp": marker_ts_stim_end,
+                        }
+                    )
+
+                # ----------------------------------------------------------------------
+                # *** Log EEG data (to avoid buffer overflow)
+
+                eeg_data_gen_img, eeg_ts_gen_img = eeg_device.get_board_data()
+                if eeg_data_gen_img.size > 0:
+                    data_logging_queue.put(
+                        {
+                            "type": "eeg",
+                            "eeg_data": eeg_data_gen_img,
+                            "eeg_timestamps": eeg_ts_gen_img,
+                        }
+                    )
 
                 if not running:
                     break
