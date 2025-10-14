@@ -17,6 +17,7 @@ from nubrain.experiment.randomize_conditions import (
     sample_next_image,
     shuffle_with_repetitions,
 )
+from nubrain.experiment_eeg_to_image_v1.tone import generate_tone
 from nubrain.image.tools import get_all_images, load_and_scale_image
 from nubrain.misc.datetime import get_formatted_current_datetime
 
@@ -87,12 +88,10 @@ def experiment_eeg_to_image_v1(config: dict):
     image_categories = list(set([x["image_category"] for x in images_and_categories]))
     random.shuffle(image_categories)
 
-    n_trials = n_blocks * images_per_block
-
     # Order of image categories.
     trial_order = create_balanced_list(
         image_categories=image_categories,
-        target_length=n_trials,
+        target_length=n_blocks,
     )
     random.shuffle(trial_order)
 
@@ -213,6 +212,35 @@ def experiment_eeg_to_image_v1(config: dict):
     while running:
         pygame.init()
 
+        # ------------------------------------------------------------------------------
+        # *** Prepare audio cue
+
+        pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
+
+        frequency = 1000  # Pitch of the tone in Hz (e.g., 1000 Hz is a common beep)
+        duration = 0.3  # Duration in seconds (half a second)
+        amplitude = 0.5  # Volume, from 0.0 to 1.0
+
+        # Play the tone x seconds before the end of the pre-stimulus period.
+        tone_pre_stimulus_onset = 0.6
+
+        # Get the sample rate from the mixer settings.
+        sample_rate = pygame.mixer.get_init()[0]
+
+        # Generate the tone data.
+        tone_data = generate_tone(
+            frequency=frequency,
+            duration=duration,
+            amplitude=amplitude,
+            sample_rate=sample_rate,
+        )
+
+        # Create a Sound object from the numpy array.
+        pure_tone = pygame.sndarray.make_sound(tone_data)
+
+        # ------------------------------------------------------------------------------
+        # *** Prepare visual stimulus generation
+
         # Get screen dimensions and set up full screen.
         screen_info = pygame.display.Info()
         screen_width = screen_info.current_w
@@ -222,8 +250,6 @@ def experiment_eeg_to_image_v1(config: dict):
         )
         pygame.display.set_caption("Image Presentation Experiment")
         pygame.mouse.set_visible(False)
-
-        idx_trial = 0
 
         try:
             # Initial grey screen.
@@ -235,13 +261,46 @@ def experiment_eeg_to_image_v1(config: dict):
             pygame.display.flip()
 
             # Pause for specified number of milliseconds.
-            pygame.time.delay(int(round(initial_rest_duration * 1000.0)))
+            pygame.time.delay(
+                int(round((initial_rest_duration - tone_pre_stimulus_onset) * 1000.0))
+            )
+
+            # Play tone to cue experiment start.
+            pure_tone.play()
+            pygame.time.delay(int(round(tone_pre_stimulus_onset * 1000.0)))
 
             # Clear board buffer.
             _, _ = eeg_device.get_board_data()
 
             # Block loop.
             for idx_block in range(n_blocks):
+                # Average embedding vectors within blocks (across trials). Show x
+                # repetitions of the same image, perform inference, and average the
+                # embedding vector.
+
+                # Sample the next image.
+                next_image_category = trial_order[idx_block]
+                next_image_file_path = sample_next_image(
+                    next_image_category=next_image_category,
+                    category_to_filepath=category_to_filepath,
+                    previous_image_file_path=previous_image_file_path,
+                )
+
+                # Load the next image.
+                image_and_metadata = None
+                while image_and_metadata is None:
+                    image_and_metadata = load_and_scale_image(
+                        image_file_path=next_image_file_path,
+                        screen_width=screen_width,
+                        screen_height=screen_height,
+                    )
+
+                current_image = image_and_metadata["image"]
+
+                # Play tone to cue block start.
+                pure_tone.play()
+                pygame.time.delay(int(round(tone_pre_stimulus_onset * 1000.0)))
+
                 # Image loop (within a block).
                 for image_count in range(images_per_block):
                     if not running:  # Check for quit event
@@ -253,32 +312,13 @@ def experiment_eeg_to_image_v1(config: dict):
                     # Start of the pre-stimulus interval.
                     t_pre_stim_start = time()
 
-                    # Sample the next image.
-                    next_image_category = trial_order[idx_trial]
-                    next_image_file_path = sample_next_image(
-                        next_image_category=next_image_category,
-                        category_to_filepath=category_to_filepath,
-                        previous_image_file_path=previous_image_file_path,
-                    )
-
-                    # Load the next image.
-                    image_and_metadata = None
-                    while image_and_metadata is None:
-                        image_and_metadata = load_and_scale_image(
-                            image_file_path=next_image_file_path,
-                            screen_width=screen_width,
-                            screen_height=screen_height,
-                        )
-
-                    current_image = image_and_metadata["image"]
-
                     img_rect = current_image.get_rect(
                         center=(screen_width // 2, screen_height // 2)
                     )
                     screen.fill(global_config.rest_condition_color)
                     screen.blit(current_image, img_rect)
 
-                    # Wait until the end of the pre-stimulus period
+                    # Wait until the end of the pre-stimulus period.
                     t_pre_stim_end = t_pre_stim_start + pre_stimulus_interval
                     while time() < t_pre_stim_end:
                         for event in pygame.event.get():
@@ -558,16 +598,24 @@ def experiment_eeg_to_image_v1(config: dict):
                             }
                         )
 
-                    # ------------------------------------------------------------------
-                    # *** Prepare next trial
-
-                    # Update tracking variables for the next loop iteration.
-                    previous_image_file_path = next_image_file_path
-
-                    idx_trial += 1
-
                 if not running:
                     break
+
+                # ----------------------------------------------------------------------
+                # *** Prepare next block
+
+                # Update tracking variables for the next loop iteration.
+                previous_image_file_path = next_image_file_path
+
+                # Inter-block grey screen.
+                screen.fill(global_config.rest_condition_color)
+                pygame.display.flip()
+                remaining_wait = (
+                    inter_block_grey_duration
+                    - tone_pre_stimulus_onset
+                    + np.random.uniform(low=0.0, high=isi_jitter)
+                )
+                pygame.time.delay(int(round(remaining_wait * 1000.0)))
 
                 # Send post-stimulus EEG data (to avoid buffer overflow).
                 eeg_data, eeg_ts = eeg_device.get_board_data()
@@ -576,13 +624,8 @@ def experiment_eeg_to_image_v1(config: dict):
                         {"type": "eeg", "eeg_data": eeg_data, "eeg_timestamps": eeg_ts}
                     )
 
-                # Inter-block grey screen.
-                screen.fill(global_config.rest_condition_color)
-                pygame.display.flip()
-                remaining_wait = inter_block_grey_duration + np.random.uniform(
-                    low=0.0, high=isi_jitter
-                )
-                pygame.time.delay(int(round(remaining_wait * 1000.0)))
+            # --------------------------------------------------------------------------
+            # *** End of experiment
 
             running = False
 
