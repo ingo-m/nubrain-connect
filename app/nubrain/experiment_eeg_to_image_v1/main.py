@@ -464,8 +464,11 @@ def experiment_eeg_to_image_v1(config: dict):
                 # *** Inference
 
                 eeg_data = np.concatenate(eeg_data, axis=1)
-
                 eeg_timestamps = np.concatenate(eeg_timestamps)
+
+                print(f"eeg_data.shape: {eeg_data.shape}")
+                print(f"eeg_timestamps.shape: {eeg_timestamps.shape}")
+                print(f"marker_data: {marker_data}")
 
                 request_dict = {
                     "eeg_data": eeg_data.tolist(),
