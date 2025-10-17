@@ -1,6 +1,6 @@
 [project]
 name = "nubrain"
-version = "0.1.29"
+version = "0.1.30"
 description = "NuBrain connect"
 authors = [{ name = "nuBrain Team", email = "hello@nubrain.io" }]
 requires-python = ">=3.10"
@@ -19,6 +19,7 @@ dependencies = [
     "requests>=2.32.3",
     "scipy>=1.15.3",
     "urllib3>=2.4.0",
+    "websockets>=15.0.1",
 ]
 license = "MIT"
 license-files = ["LICENSE"]
