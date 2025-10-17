@@ -57,6 +57,41 @@ def get_all_images(*, image_directory: str):
     return images_and_categories
 
 
+def scale_image_surface(
+    *,
+    image_surface,
+    screen_width: int,
+    screen_height: int,
+):
+    try:
+        img_rect = image_surface.get_rect()
+
+        if ((screen_width * 0.5) < img_rect.width) or (
+            (screen_height * 0.5) < img_rect.height
+        ):
+            # The image is larger than the screen. Scale it to fit the screen while
+            # maintaining the aspect ratio.
+            scale_w = screen_width * 0.5 / img_rect.width
+            scale_h = screen_height * 0.5 / img_rect.height
+            scale = min(scale_w, scale_h)
+
+            new_width = int(img_rect.width * scale)
+            new_height = int(img_rect.height * scale)
+            image_surface = pygame.transform.smoothscale(
+                image_surface, (new_width, new_height)
+            )
+
+        else:
+            # The image is not too large for the screen.
+            pass
+
+    except pygame.error as e:
+        print(f"Error scaling image surface: {e}")
+        return None
+
+    return image_surface
+
+
 def load_and_scale_image(
     *,
     image_file_path: str,

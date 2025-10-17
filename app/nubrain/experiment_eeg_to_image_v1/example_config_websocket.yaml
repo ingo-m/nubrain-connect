@@ -1,0 +1,53 @@
+# Device configuration
+device_type: "dsi24" # Options: "cyton", "dsi24", "synthetic"
+lsl_stream_name: "DSI-24" # LSL stream name from DSI-Streamer
+
+utility_frequency: 60.0 # Hz
+
+subject_id: "sub-001"
+session_id: "session-003"
+
+# Use Windows-style paths
+output_directory: "C:/Users/nubra/Documents/recordings_eeg_to_image_v1"
+output_dir_images: "C:/Users/nubra/Documents/generated_images_eeg_to_image_v1"
+image_directory: "C:/Users/nubra/Documents/FLUX.1-dev_v03_subset_for_live_thought_to_image"
+
+# EEG channel mapping is optional for DSI-24. Will try to get channel names from the LSL
+# stream.
+# eeg_channel_mapping:
+#   0: "Fp1"
+#   1: "Fp2"
+#   2: "F7"
+#   3: "F3"
+#   4: "Fz"
+#   5: "F4"
+#   6: "F8"
+#   7: "T3"
+#   8: "C3"
+#   9: "Cz"
+#   10: "C4"
+#   11: "T4"
+#   12: "T5"
+#   13: "P3"
+#   14: "Pz"
+#   15: "P4"
+#   16: "T6"
+#   17: "O1"
+#   18: "O2"
+#   19: "Trigger"  # If DSI-24 has a trigger channel
+
+# Condition durations in seconds:
+initial_rest_duration: 2.0
+pre_stimulus_interval: 1.0
+image_duration: 1.0
+post_stimulus_interval: 1.0
+generated_image_duration: 2.0
+isi_jitter: 0.1 # Random jitter up to x seconds added to ISI
+inter_block_grey_duration: 0.1
+
+n_blocks: 5
+images_per_block: 1
+
+api_endpoint: "ws://107.178.209.118:8000/eeg-to-image"
+# Not needed for DSI-24, leave as null or omit
+# eeg_device_address:
