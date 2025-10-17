@@ -5,7 +5,9 @@ from nubrain.experiment.main import experiment
 from nubrain.experiment_eeg_to_image_v1.load_config import (
     load_config_yaml_eeg_to_image_v1,
 )
-from nubrain.experiment_eeg_to_image_v1.main import experiment_eeg_to_image_v1
+
+# from nubrain.experiment_eeg_to_image_v1.main import experiment_eeg_to_image_v1
+from nubrain.experiment_eeg_to_image_v1.main_websocket import experiment_eeg_to_image_v1
 
 
 def main():
