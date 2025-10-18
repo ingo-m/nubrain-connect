@@ -580,7 +580,7 @@ def experiment_eeg_to_image_v1(config: dict):
                             image_surface=generated_image_surface,  # TODO
                             screen_width=screen_width,
                             screen_height=screen_height,
-                        )["image"]
+                        )
 
                         # Display the new image.
                         img_rect = scaled_image_surface.get_rect(
