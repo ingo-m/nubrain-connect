@@ -46,34 +46,25 @@ def websocket_client_thread(uri, request_json, image_queue):
     """
 
     async def client_logic():
-        try:
-            async with websockets.connect(uri) as websocket:
-                # Send the EEG data
-                await websocket.send(request_json)
+        async with websockets.connect(uri) as websocket:
+            # Send the EEG data
+            await websocket.send(request_json)
 
-                # Listen for incoming image messages
-                while True:
-                    try:
-                        message_str = await websocket.recv()
-                        message = json.loads(message_str)
+            # Listen for incoming image messages
+            while True:
+                message_str = await websocket.recv()
+                message = json.loads(message_str)
 
-                        if "error" in message:
-                            print(f"Server error: {message['error']}")
-                            image_queue.put(None)  # Signal error
-                            break
+                if "error" in message:
+                    print(f"Server error: {message['error']}")
+                    image_queue.put(None)  # Signal error
+                    break
 
-                        # Put the received data into the thread-safe queue
-                        image_queue.put(message)
+                # Put the received data into the thread-safe queue
+                image_queue.put(message)
 
-                        if message.get("step") == "final":
-                            break  # End of stream
-
-                    except websockets.exceptions.ConnectionClosed:
-                        print("Connection closed by server.")
-                        break
-        except Exception as e:
-            print(f"WebSocket client error: {e}")
-            image_queue.put(None)  # Signal error
+                if message.get("step") == "final":
+                    break  # End of stream
 
     # Run the async logic in a new event loop for this thread
     asyncio.run(client_logic())
