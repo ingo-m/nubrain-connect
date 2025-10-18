@@ -46,7 +46,7 @@ def websocket_client_thread(uri, request_json, image_queue):
     """
 
     async def client_logic():
-        async with websockets.connect(uri) as websocket:
+        async with websockets.connect(uri, max_size=5242880) as websocket:
             # Send the EEG data
             await websocket.send(request_json)
 
