@@ -5,11 +5,12 @@ lsl_stream_name: "DSI-24" # LSL stream name from DSI-Streamer
 utility_frequency: 60.0 # Hz
 
 subject_id: "sub-001"
-session_id: "session-001"
+session_id: "session-003"
 
 # Use Windows-style paths
-output_directory: "C:\\experiments\\output"
-image_directory: "C:\\experiments\\images"
+output_directory: "C:/Users/nubra/Documents/recordings_eeg_to_image_v1"
+output_dir_images: "C:/Users/nubra/Documents/generated_images_eeg_to_image_v1"
+image_directory: "C:/Users/nubra/Documents/FLUX.1-dev_v03_subset_for_live_thought_to_image"
 
 # EEG channel mapping is optional for DSI-24. Will try to get channel names from the LSL
 # stream.
@@ -36,19 +37,17 @@ image_directory: "C:\\experiments\\images"
 #   19: "Trigger"  # If DSI-24 has a trigger channel
 
 # Condition durations in seconds:
-initial_rest_duration: 5.0
+initial_rest_duration: 2.0
 pre_stimulus_interval: 1.0
 image_duration: 1.0
 post_stimulus_interval: 1.0
-generated_image_duration: 3.0
+generated_image_duration: 2.0
 isi_jitter: 0.1 # Random jitter up to x seconds added to ISI
-inter_block_grey_duration: 5.0
+inter_block_grey_duration: 0.1
 
 n_blocks: 5
-images_per_block: 5
+images_per_block: 1
 
-api_endpoint: "http://34.41.24.63:8000/eeg-to-image"
-
-output_dir_images: "C:\\experiments\\output"
+api_endpoint: "ws://107.178.209.118:8000/eeg-to-image"
 # Not needed for DSI-24, leave as null or omit
 # eeg_device_address:

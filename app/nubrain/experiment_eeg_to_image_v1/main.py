@@ -1,13 +1,23 @@
+"""
+EEG to image live demo. Receive images iteratively (looping over diffusion steps) and
+via websocket.
+"""
+
+import asyncio
+import base64
+import io
 import json
 import multiprocessing as mp
 import os
+import queue
 import random
+import threading
 import traceback
 from time import sleep, time
 
 import numpy as np
 import pygame
-import requests
+import websockets
 
 from nubrain.device.device_interface import create_eeg_device
 from nubrain.experiment.data import eeg_data_logging
@@ -18,10 +28,46 @@ from nubrain.experiment.randomize_conditions import (
     shuffle_with_repetitions,
 )
 from nubrain.experiment_eeg_to_image_v1.tone import generate_tone
-from nubrain.image.tools import get_all_images, load_and_scale_image
+from nubrain.image.tools import (
+    get_all_images,
+    load_and_scale_image,
+    scale_image_surface,
+)
 from nubrain.misc.datetime import get_formatted_current_datetime
 
 mp.set_start_method("spawn", force=True)  # Necessary on if running on windows?
+
+
+def websocket_client_thread(uri, request_json, image_queue):
+    """
+    Handle WebSocket communication in a separate thread.
+
+    Connects to the WebSocket, sends data, and puts received images into a queue.
+    """
+
+    async def client_logic():
+        async with websockets.connect(uri, max_size=5242880) as websocket:
+            # Send the EEG data
+            await websocket.send(request_json)
+
+            # Listen for incoming image messages
+            while True:
+                message_str = await websocket.recv()
+                message = json.loads(message_str)
+
+                if "error" in message:
+                    print(f"Server error: {message['error']}")
+                    image_queue.put(None)  # Signal error
+                    break
+
+                # Put the received data into the thread-safe queue
+                image_queue.put(message)
+
+                if message.get("step") == "final":
+                    break  # End of stream
+
+    # Run the async logic in a new event loop for this thread
+    asyncio.run(client_logic())
 
 
 def experiment_eeg_to_image_v1(config: dict):
@@ -235,7 +281,7 @@ def experiment_eeg_to_image_v1(config: dict):
             sample_rate=sample_rate,
         )
 
-        # Create a Sound object from the numpy array.
+        # Create a sound object from the numpy array.
         pure_tone = pygame.sndarray.make_sound(tone_data)
 
         # ------------------------------------------------------------------------------
@@ -250,6 +296,22 @@ def experiment_eeg_to_image_v1(config: dict):
         )
         pygame.display.set_caption("Image Presentation Experiment")
         pygame.mouse.set_visible(False)
+
+        # Prepare text.
+        font = pygame.font.Font(None, 56)
+
+        text_original = font.render("Original image", True, (0, 0, 0))
+        text_reconstructed = font.render("Reconstructed from EEG", True, (0, 0, 0))
+
+        text_original_rect = text_original.get_rect(
+            center=((screen_width * 1 // 4), (screen_height // 4 - 50))
+        )
+        text_reconstructed_rect = text_reconstructed.get_rect(
+            center=((screen_width * 3 // 4), (screen_height // 4 - 50))
+        )
+
+        screen.blit(text_original, text_original_rect)
+        screen.blit(text_reconstructed, text_reconstructed_rect)
 
         try:
             # Initial grey screen.
@@ -466,10 +528,6 @@ def experiment_eeg_to_image_v1(config: dict):
                 eeg_data = np.concatenate(eeg_data, axis=1)
                 eeg_timestamps = np.concatenate(eeg_timestamps)
 
-                print(f"eeg_data.shape: {eeg_data.shape}")
-                print(f"eeg_timestamps.shape: {eeg_timestamps.shape}")
-                print(f"marker_data: {marker_data}")
-
                 request_dict = {
                     "eeg_data": eeg_data.tolist(),
                     "eeg_timestamps": eeg_timestamps.tolist(),
@@ -480,50 +538,129 @@ def experiment_eeg_to_image_v1(config: dict):
 
                 request_json = json.dumps(request_dict)
 
-                response = requests.post(
-                    url=api_endpoint,
-                    data=request_json,
+                # Wueue to receive images from the websocket thread.
+                image_queue = queue.Queue()
+
+                client_thread = threading.Thread(
+                    target=websocket_client_thread,
+                    args=(api_endpoint, request_json, image_queue),
+                    daemon=True,
                 )
+                client_thread.start()
 
-                time_now = get_formatted_current_datetime()
-                true_image_category = next_image_category
+                # ----------------------------------------------------------------------
+                # *** Show generated images as they arrive next to the original image
 
-                if response.status_code == 200:
-                    eeg_model_id = response.headers.get("X-eeg-model-id")
+                generated_image_surface = None
+                path_image_out = None
+                eeg_model_id = "unknown"
+                is_first_message = True
 
-                    path_image_out = os.path.join(
-                        output_dir_images,
-                        f"{eeg_model_id}_{time_now}_{true_image_category}.png",
-                    )
+                # Loop to display images as they are received from the thread.
+                while True:
+                    try:
+                        # Check the queue for a new message (non-blocking).
+                        message = image_queue.get_nowait()
 
-                    with open(path_image_out, "wb") as f:
-                        f.write(response.content)
-                else:
-                    print(f"Error: {response.status_code}")
-                    print(response.text)
-                    running = False
+                        if message is None:  # Error signal
+                            print("Error receiving image from server.")
+                            running = False
+                            break
+
+                        if is_first_message:
+                            # The first message contains the model ID.
+                            eeg_model_id = message.get("eeg_model_id", "unknown")
+                            is_first_message = False
+                            continue  # Wait for the next message which will be an image
+
+                        # Decode the base64 image.
+                        image_bytes = base64.b64decode(message["image_base64"])
+                        image_file = io.BytesIO(image_bytes)
+
+                        # Create a Pygame surface
+                        generated_image_surface = pygame.image.load(
+                            image_file
+                        ).convert()
+
+                        # Scale the image for display.
+                        scaled_image_surface = scale_image_surface(
+                            image_surface=generated_image_surface,  # TODO
+                            screen_width=screen_width,
+                            screen_height=screen_height,
+                        )
+
+                        # Display the original image on the left, and the generated
+                        # image on the right.
+                        original_img_rect = current_image.get_rect(
+                            center=(
+                                (screen_width * 1 // 4),
+                                screen_height // 2 + 50,
+                            )
+                        )
+                        generated_img_rect = scaled_image_surface.get_rect(
+                            center=(
+                                (screen_width * 3 // 4),
+                                screen_height // 2 + 50,
+                            )
+                        )
+
+                        screen.fill(global_config.rest_condition_color)
+                        # Text titles (original & reconstructed image).
+                        screen.blit(text_original, text_original_rect)
+                        screen.blit(text_reconstructed, text_reconstructed_rect)
+                        # Original image.
+                        screen.blit(current_image, original_img_rect)
+                        # Reconstructed image.
+                        screen.blit(scaled_image_surface, generated_img_rect)
+
+                        pygame.display.flip()
+
+                        # If this is the final, high-quality image, save it.
+                        if message.get("step") == "final":
+                            time_now = get_formatted_current_datetime()
+                            true_image_category = next_image_category
+                            path_image_out = os.path.join(
+                                output_dir_images,
+                                f"{eeg_model_id}_{time_now}_{true_image_category}.png",
+                            )
+                            with open(path_image_out, "wb") as f:
+                                f.write(image_bytes)
+                            break  # Exit the image receiving loop
+
+                    except queue.Empty:
+                        # No new image in the queue, just continue the loop
+                        pass
+
+                    # Keep Pygame responsive
+                    for event in pygame.event.get():
+                        if event.type == pygame.QUIT or (
+                            event.type == pygame.KEYDOWN
+                            and event.key == pygame.K_ESCAPE
+                        ):
+                            running = False
+                            break
+                    if not running:
+                        break
+
+                if not running:
                     break
 
                 # ----------------------------------------------------------------------
-                # *** Show generated image
-
-                generated_image_and_metadata = load_and_scale_image(
-                    image_file_path=path_image_out,
-                    screen_width=screen_width,
-                    screen_height=screen_height,
-                )
-
-                generated_image = generated_image_and_metadata["image"]
-
-                img_rect = current_image.get_rect(
-                    center=(screen_width // 2, screen_height // 2)
-                )
-                screen.fill(global_config.rest_condition_color)
-                screen.blit(generated_image, img_rect)
-                pygame.display.flip()
+                # *** Show the final generated image for a fixed duration
 
                 # Show generated image for this amount of time.
                 t_generated_img_end = time() + generated_image_duration
+
+                screen.fill(global_config.rest_condition_color)
+                # Text titles (original & reconstructed image).
+                screen.blit(text_original, text_original_rect)
+                screen.blit(text_reconstructed, text_reconstructed_rect)
+                # Original image.
+                screen.blit(current_image, original_img_rect)
+                # Reconstructed image.
+                screen.blit(scaled_image_surface, generated_img_rect)
+
+                pygame.display.flip()
 
                 # Insert stimulus start marker and get its timestamp.
                 generated_img_start_marker = 3.0  # Hardcoded TODO make config param

@@ -1,6 +1,5 @@
 """
-This version: Receive images iteratively (looping over diffusion steps) and via
-websocket.
+This version: Uses previous reconstructed image as new stimulus.
 """
 
 import asyncio
@@ -23,9 +22,7 @@ from nubrain.device.device_interface import create_eeg_device
 from nubrain.experiment.data import eeg_data_logging
 from nubrain.experiment.global_config import GlobalConfig
 from nubrain.experiment.randomize_conditions import (
-    create_balanced_list,
     sample_next_image,
-    shuffle_with_repetitions,
 )
 from nubrain.experiment_eeg_to_image_v1.tone import generate_tone
 from nubrain.image.tools import (
@@ -70,7 +67,7 @@ def websocket_client_thread(uri, request_json, image_queue):
     asyncio.run(client_logic())
 
 
-def experiment_eeg_to_image_v1(config: dict):
+def experiment_eeg_to_image_v1_autoregressive(config: dict):
     # ----------------------------------------------------------------------------------
     # *** Get config
 
@@ -132,20 +129,9 @@ def experiment_eeg_to_image_v1(config: dict):
 
     # List with all unique image categories (e.g. `["apple", "banana", ...]`).
     image_categories = list(set([x["image_category"] for x in images_and_categories]))
-    random.shuffle(image_categories)
 
-    # Order of image categories.
-    trial_order = create_balanced_list(
-        image_categories=image_categories,
-        target_length=n_blocks,
-    )
-    random.shuffle(trial_order)
-
-    trial_order = shuffle_with_repetitions(
-        list_with_duplicates=trial_order,
-        repetitions=0,
-        minimize_runs=True,
-    )
+    # Pick one target category at random.
+    source_image_category = random.choice(image_categories)
 
     # Mapping from image categories to image file paths, e.g. `{"apple":
     # ["/path/to/apple_1.png", "/path/to/apple_2.png", ...], "banana":
@@ -252,6 +238,16 @@ def experiment_eeg_to_image_v1(config: dict):
     logging_process.start()
 
     # ----------------------------------------------------------------------------------
+    # *** Get source image
+
+    # Sample the next image.
+    next_image_file_path = sample_next_image(
+        next_image_category=source_image_category,
+        category_to_filepath=category_to_filepath,
+        previous_image_file_path=previous_image_file_path,
+    )
+
+    # ----------------------------------------------------------------------------------
     # *** Start experiment
 
     running = True
@@ -335,14 +331,6 @@ def experiment_eeg_to_image_v1(config: dict):
                 # Average embedding vectors within blocks (across trials). Show x
                 # repetitions of the same image, perform inference, and average the
                 # embedding vector.
-
-                # Sample the next image.
-                next_image_category = trial_order[idx_block]
-                next_image_file_path = sample_next_image(
-                    next_image_category=next_image_category,
-                    category_to_filepath=category_to_filepath,
-                    previous_image_file_path=previous_image_file_path,
-                )
 
                 # Load the next image.
                 image_and_metadata = None
@@ -514,7 +502,7 @@ def experiment_eeg_to_image_v1(config: dict):
                         "stimulus_end_time": t_stim_end_actual,
                         "stimulus_duration_s": t_stim_end_actual - t_stim_start,
                         "image_file_path": next_image_file_path,
-                        "image_category": next_image_category,
+                        "image_category": source_image_category,
                         "is_target_event": False,  # Dummy values, TODO: data logging for eeg-to-image
                         "response_time_s": 0.0,  # Dummy values, TODO: data logging for eeg-to-image
                     }
@@ -618,10 +606,9 @@ def experiment_eeg_to_image_v1(config: dict):
                         # If this is the final, high-quality image, save it.
                         if message.get("step") == "final":
                             time_now = get_formatted_current_datetime()
-                            true_image_category = next_image_category
                             path_image_out = os.path.join(
                                 output_dir_images,
-                                f"{eeg_model_id}_{time_now}_{true_image_category}.png",
+                                f"{eeg_model_id}_{time_now}_{source_image_category}.png",
                             )
                             with open(path_image_out, "wb") as f:
                                 f.write(image_bytes)
@@ -743,8 +730,8 @@ def experiment_eeg_to_image_v1(config: dict):
                 # ----------------------------------------------------------------------
                 # *** Prepare next block
 
-                # Update tracking variables for the next loop iteration.
-                previous_image_file_path = next_image_file_path
+                # Show the generated image as the new source image.
+                next_image_file_path = path_image_out
 
                 # Inter-block grey screen.
                 screen.fill(global_config.rest_condition_color)

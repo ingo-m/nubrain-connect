@@ -5,9 +5,10 @@ from nubrain.experiment.main import experiment
 from nubrain.experiment_eeg_to_image_v1.load_config import (
     load_config_yaml_eeg_to_image_v1,
 )
-
-# from nubrain.experiment_eeg_to_image_v1.main import experiment_eeg_to_image_v1
-from nubrain.experiment_eeg_to_image_v1.main_websocket import experiment_eeg_to_image_v1
+from nubrain.experiment_eeg_to_image_v1.main import experiment_eeg_to_image_v1
+from nubrain.experiment_eeg_to_image_v1.main_autoregressive import (
+    experiment_eeg_to_image_v1_autoregressive,
+)
 
 
 def main():
@@ -30,6 +31,12 @@ def main():
         help="Live EEG to image generation.",
     )
 
+    parser.add_argument(
+        "--autoregressive",
+        action="store_true",
+        help="Use previous reconstructed image as the next stimulus.",
+    )
+
     args = parser.parse_args()
 
     print("nubrain")
@@ -39,6 +46,8 @@ def main():
 
     # Whether to run live EEG to image generation. Set to True if the flag is present.
     eeg_to_image_v1 = args.eeg_to_image_v1
+
+    autoregressive = args.autoregressive
 
     # Load EEG experiment config from yaml file.
     if eeg_to_image_v1:
@@ -50,8 +59,13 @@ def main():
         config = load_config_yaml(yaml_file_path=yaml_file_path)
 
     if eeg_to_image_v1:
-        # Live EEG to image generation mode.
-        experiment_eeg_to_image_v1(config=config)
+        if autoregressive:
+            # Autoregressive live EEG to image generation mode (use previous
+            # reconstructed image as next stimulus).
+            experiment_eeg_to_image_v1_autoregressive(config=config)
+        else:
+            # Live EEG to image generation mode.
+            experiment_eeg_to_image_v1(config=config)
     else:
         # Regular data collection mode.
         experiment(config=config)
