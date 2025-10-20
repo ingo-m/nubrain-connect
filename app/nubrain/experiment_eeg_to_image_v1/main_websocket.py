@@ -281,7 +281,7 @@ def experiment_eeg_to_image_v1(config: dict):
             sample_rate=sample_rate,
         )
 
-        # Create a Sound object from the numpy array.
+        # Create a sound object from the numpy array.
         pure_tone = pygame.sndarray.make_sound(tone_data)
 
         # ------------------------------------------------------------------------------
@@ -296,6 +296,22 @@ def experiment_eeg_to_image_v1(config: dict):
         )
         pygame.display.set_caption("Image Presentation Experiment")
         pygame.mouse.set_visible(False)
+
+        # Prepare text.
+        font = pygame.font.Font(None, 56)
+
+        text_original = font.render("Original image", True, (0, 0, 0))
+        text_reconstructed = font.render("Reconstructed from EEG", True, (0, 0, 0))
+
+        text_original_rect = text_original.get_rect(
+            center=(screen_width // 3, screen_height * 3 // 4 + 50)
+        )
+        text_reconstructed_rect = text_original.get_rect(
+            center=(screen_width * 2 // 3, screen_height * 3 // 4 + 50)
+        )
+
+        screen.blit(text_original, text_original_rect)
+        screen.blit(text_reconstructed, text_reconstructed_rect)
 
         try:
             # Initial grey screen.
@@ -533,7 +549,7 @@ def experiment_eeg_to_image_v1(config: dict):
                 client_thread.start()
 
                 # ----------------------------------------------------------------------
-                # *** Show generated images as they arrive
+                # *** Show generated images as they arrive next to the original image
 
                 generated_image_surface = None
                 path_image_out = None
@@ -573,12 +589,24 @@ def experiment_eeg_to_image_v1(config: dict):
                             screen_height=screen_height,
                         )
 
-                        # Display the new image.
-                        img_rect = scaled_image_surface.get_rect(
-                            center=(screen_width // 2, screen_height // 2)
+                        # Display the original image on the left, and the generated
+                        # image on the right.
+                        original_img_rect = current_image.get_rect(
+                            center=(screen_width // 3, screen_height // 2)
                         )
+                        generated_img_rect = scaled_image_surface.get_rect(
+                            center=(screen_width * 2 // 3, screen_height // 2)
+                        )
+
                         screen.fill(global_config.rest_condition_color)
-                        screen.blit(scaled_image_surface, img_rect)
+                        # Text titles (original & reconstructed image).
+                        screen.blit(text_original, text_original_rect)
+                        screen.blit(text_reconstructed, text_reconstructed_rect)
+                        # Original image.
+                        screen.blit(current_image, original_img_rect)
+                        # Reconstructed image.
+                        screen.blit(scaled_image_surface, generated_img_rect)
+
                         pygame.display.flip()
 
                         # If this is the final, high-quality image, save it.
@@ -617,19 +645,15 @@ def experiment_eeg_to_image_v1(config: dict):
                 # Show generated image for this amount of time.
                 t_generated_img_end = time() + generated_image_duration
 
-                generated_image_and_metadata = load_and_scale_image(
-                    image_file_path=path_image_out,
-                    screen_width=screen_width,
-                    screen_height=screen_height,
-                )
-
-                generated_image = generated_image_and_metadata["image"]
-
-                img_rect = current_image.get_rect(
-                    center=(screen_width // 2, screen_height // 2)
-                )
                 screen.fill(global_config.rest_condition_color)
-                screen.blit(generated_image, img_rect)
+                # Text titles (original & reconstructed image).
+                screen.blit(text_original, text_original_rect)
+                screen.blit(text_reconstructed, text_reconstructed_rect)
+                # Original image.
+                screen.blit(current_image, original_img_rect)
+                # Reconstructed image.
+                screen.blit(scaled_image_surface, generated_img_rect)
+
                 pygame.display.flip()
 
                 # Insert stimulus start marker and get its timestamp.
