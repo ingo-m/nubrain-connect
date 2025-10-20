@@ -306,7 +306,7 @@ def experiment_eeg_to_image_v1(config: dict):
         text_original_rect = text_original.get_rect(
             center=((screen_width * 1 // 4), (screen_height // 4 - 50))
         )
-        text_reconstructed_rect = text_original.get_rect(
+        text_reconstructed_rect = text_reconstructed.get_rect(
             center=((screen_width * 3 // 4), (screen_height // 4 - 50))
         )
 
