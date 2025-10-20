@@ -304,10 +304,10 @@ def experiment_eeg_to_image_v1(config: dict):
         text_reconstructed = font.render("Reconstructed from EEG", True, (0, 0, 0))
 
         text_original_rect = text_original.get_rect(
-            center=(screen_width // 3, screen_height * 3 // 4 + 50)
+            center=((screen_width * 1 // 4), (screen_height // 4 - 50))
         )
         text_reconstructed_rect = text_original.get_rect(
-            center=(screen_width * 2 // 3, screen_height * 3 // 4 + 50)
+            center=((screen_width * 3 // 4), (screen_height // 4 - 50))
         )
 
         screen.blit(text_original, text_original_rect)
@@ -592,10 +592,16 @@ def experiment_eeg_to_image_v1(config: dict):
                         # Display the original image on the left, and the generated
                         # image on the right.
                         original_img_rect = current_image.get_rect(
-                            center=(screen_width // 3, screen_height // 2)
+                            center=(
+                                (screen_width * 1 // 4),
+                                screen_height // 2 + 50,
+                            )
                         )
                         generated_img_rect = scaled_image_surface.get_rect(
-                            center=(screen_width * 2 // 3, screen_height // 2)
+                            center=(
+                                (screen_width * 3 // 4),
+                                screen_height // 2 + 50,
+                            )
                         )
 
                         screen.fill(global_config.rest_condition_color)
