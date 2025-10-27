@@ -25,11 +25,11 @@ def run_live_demo(live_demo_cache: str):
     pre_stimulus_interval = 1.0
     image_duration = 1.0
     post_stimulus_interval = 0.5
-    generated_image_duration = 1.0
+    generated_image_duration = 1.5
     isi_jitter = 0.1
     inter_block_grey_duration = 0.1
 
-    image_generation_step_delay = 0.05
+    image_generation_step_delay = 0.1
 
     global_config = GlobalConfig()
 
@@ -127,6 +127,12 @@ def run_live_demo(live_demo_cache: str):
 
                 current_image = pygame.image.load(stimulus_image_file)
 
+                current_image = scale_image_surface(
+                    image_surface=current_image,  # TODO
+                    screen_width=screen_width,
+                    screen_height=screen_height,
+                )
+
                 # Play tone to cue block start.
                 pure_tone.play()
                 pygame.time.delay(int(round(tone_pre_stimulus_onset * 1000.0)))
@@ -206,16 +212,17 @@ def run_live_demo(live_demo_cache: str):
                 # *** Show generated images next to the original image
 
                 for idx_step in range(len(generated_images_bytes)):
+                    print(f"Step {idx_step}")
                     generated_image_bytes = generated_images_bytes[idx_step]
                     generated_image_file = io.BytesIO(generated_image_bytes)
 
                     # Create a Pygame surface
                     generated_image_surface = pygame.image.load(
                         generated_image_file
-                    ).convert()
+                    )  # .convert()
 
                     # Scale the image for display.
-                    scaled_image_surface = scale_image_surface(
+                    generated_image_surface = scale_image_surface(
                         image_surface=generated_image_surface,
                         screen_width=screen_width,
                         screen_height=screen_height,
@@ -229,7 +236,7 @@ def run_live_demo(live_demo_cache: str):
                             screen_height // 2 + 50,
                         )
                     )
-                    generated_img_rect = scaled_image_surface.get_rect(
+                    generated_img_rect = generated_image_surface.get_rect(
                         center=(
                             (screen_width * 3 // 4),
                             screen_height // 2 + 50,
@@ -243,7 +250,7 @@ def run_live_demo(live_demo_cache: str):
                     # Original image.
                     screen.blit(current_image, original_img_rect)
                     # Reconstructed image.
-                    screen.blit(scaled_image_surface, generated_img_rect)
+                    screen.blit(generated_image_surface, generated_img_rect)
 
                     pygame.display.flip()
 
@@ -276,7 +283,7 @@ def run_live_demo(live_demo_cache: str):
                 # Original image.
                 screen.blit(current_image, original_img_rect)
                 # Reconstructed image.
-                screen.blit(scaled_image_surface, generated_img_rect)
+                screen.blit(generated_image_surface, generated_img_rect)
 
                 pygame.display.flip()
 
@@ -319,6 +326,6 @@ def run_live_demo(live_demo_cache: str):
             print("Experiment closed.")
 
 
-run_live_demo(
-    live_demo_cache="/media/john/data_drive/nubrain/inference/e49b81039572c4031bb6016b1c75f71b896345e6_live_demo/cached.pickle"
-)
+# run_live_demo(
+#     live_demo_cache="/media/john/data_drive/nubrain/inference/e49b81039572c4031bb6016b1c75f71b896345e6_live_demo/cached.pickle"
+# )
