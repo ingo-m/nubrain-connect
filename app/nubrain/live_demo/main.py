@@ -17,7 +17,7 @@ from nubrain.image.tools import (
 )
 
 
-def run_live_demo(live_demo_cache: str):
+def run_live_demo(cache: str):
     # ----------------------------------------------------------------------------------
     # *** Get config
 
@@ -36,7 +36,7 @@ def run_live_demo(live_demo_cache: str):
     # ----------------------------------------------------------------------------------
     # *** Load cache
 
-    with open(live_demo_cache, "rb") as f:
+    with open(cache, "rb") as f:
         trial_data = pickle.load(f)
 
     n_trials = len(trial_data)
@@ -327,5 +327,5 @@ def run_live_demo(live_demo_cache: str):
 
 
 # run_live_demo(
-#     live_demo_cache="/media/john/data_drive/nubrain/inference/e49b81039572c4031bb6016b1c75f71b896345e6_live_demo/cached.pickle"
+#     cache="/media/john/data_drive/nubrain/inference/e49b81039572c4031bb6016b1c75f71b896345e6_live_demo/cached.pickle"
 # )
