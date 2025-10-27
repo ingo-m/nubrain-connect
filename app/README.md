@@ -35,3 +35,10 @@ conda activate py-nubrain
 
 nubrain --config=/path/to/example_config.yaml
 ```
+
+# Demo mode
+
+```bash
+conda activate py-nubrain
+nubrain --live_demo --config /path/to/cached.pickle
+```
