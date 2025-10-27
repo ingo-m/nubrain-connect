@@ -1,14 +1,25 @@
 import argparse
 
 from nubrain.experiment.load_config import load_config_yaml
-from nubrain.experiment.main import experiment
-from nubrain.experiment_eeg_to_image_v1.load_config import (
-    load_config_yaml_eeg_to_image_v1,
-)
-from nubrain.experiment_eeg_to_image_v1.main import experiment_eeg_to_image_v1
-from nubrain.experiment_eeg_to_image_v1.main_autoregressive import (
-    experiment_eeg_to_image_v1_autoregressive,
-)
+
+# Wrap these imports in try, so that the other modules can be imported without
+# dependency on pylsl for demo mode.
+try:
+    from nubrain.experiment.main import experiment
+    from nubrain.experiment_eeg_to_image_v1.load_config import (
+        load_config_yaml_eeg_to_image_v1,
+    )
+    from nubrain.experiment_eeg_to_image_v1.main import experiment_eeg_to_image_v1
+    from nubrain.experiment_eeg_to_image_v1.main_autoregressive import (
+        experiment_eeg_to_image_v1_autoregressive,
+    )
+except Exception as e:
+    experiment = None
+    load_config_yaml_eeg_to_image_v1 = None
+    experiment_eeg_to_image_v1 = None
+    experiment_eeg_to_image_v1_autoregressive = None
+    print(f"Failed to import nubrain main module: {e}")
+
 from nubrain.live_demo.main import run_live_demo
 
 
