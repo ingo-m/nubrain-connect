@@ -22,14 +22,14 @@ def run_live_demo(cache: str):
     # *** Get config
 
     initial_rest_duration = 0.2
-    pre_stimulus_interval = 1.0
-    image_duration = 1.0
-    post_stimulus_interval = 0.5
-    generated_image_duration = 1.5
+    pre_stimulus_interval = 1.1
+    image_duration = 1.1
+    post_stimulus_interval = 0.7
+    generated_image_duration = 3.0
     isi_jitter = 0.1
     inter_block_grey_duration = 0.1
 
-    image_generation_step_delay = 0.1
+    image_generation_step_delay = 0.12
 
     global_config = GlobalConfig()
 
