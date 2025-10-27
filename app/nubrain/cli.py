@@ -40,8 +40,8 @@ def main():
 
     parser.add_argument(
         "--live_demo",
-        type=str,
-        help="Path to the cache for demo.",
+        action="store_true",
+        help="Demo mode.",
     )
 
     args = parser.parse_args()
@@ -49,25 +49,25 @@ def main():
     print("nubrain")
     print(f"Configuration file provided: {args.config}")
 
-    yaml_file_path = args.config
+    input_file_path = args.config
 
     # Whether to run live EEG to image generation. Set to True if the flag is present.
     eeg_to_image_v1 = args.eeg_to_image_v1
 
     autoregressive = args.autoregressive
 
-    live_demo_cache = args.live_demo
+    live_demo = args.live_demo
 
     # Load EEG experiment config from yaml file.
     if eeg_to_image_v1:
         # Live EEG to image generation mode. Use corresponding config file loading
         # function (different parameters than regular data collection).
-        config = load_config_yaml_eeg_to_image_v1(yaml_file_path=yaml_file_path)
-    elif live_demo_cache:
+        config = load_config_yaml_eeg_to_image_v1(yaml_file_path=input_file_path)
+    elif live_demo:
         pass
     else:
         # Regular data collection mode.
-        config = load_config_yaml(yaml_file_path=yaml_file_path)
+        config = load_config_yaml(yaml_file_path=input_file_path)
 
     if eeg_to_image_v1:
         if autoregressive:
@@ -77,8 +77,8 @@ def main():
         else:
             # Live EEG to image generation mode.
             experiment_eeg_to_image_v1(config=config)
-    elif live_demo_cache is not None:
-        run_live_demo(cache=live_demo_cache)
+    elif live_demo:
+        run_live_demo(cache=input_file_path)  # Pickle file path
     else:
         # Regular data collection mode.
         experiment(config=config)
