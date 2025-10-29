@@ -25,7 +25,7 @@ def run_live_demo(cache: str):
     pre_stimulus_interval = 1.1
     image_duration = 1.1
     post_stimulus_interval = 0.7
-    generated_image_duration = 3.0
+    # generated_image_duration = 3.0
     isi_jitter = 0.1
     inter_block_grey_duration = 0.1
 
@@ -274,7 +274,7 @@ def run_live_demo(cache: str):
                 # *** Show the final generated image for a fixed duration
 
                 # Show generated image for this amount of time.
-                t_generated_img_end = time() + generated_image_duration
+                # t_generated_img_end = time() + generated_image_duration
 
                 screen.fill(global_config.rest_condition_color)
                 # Text titles (original & reconstructed image).
@@ -287,15 +287,33 @@ def run_live_demo(cache: str):
 
                 pygame.display.flip()
 
-                while time() < t_generated_img_end:
+                # Show generated image for specified amount of time.
+                # while time() < t_generated_img_end:
+                #     for event in pygame.event.get():
+                #         if event.type == pygame.QUIT:
+                #             running = False
+                #         if event.type == pygame.KEYDOWN:
+                #             if event.key == pygame.K_ESCAPE:
+                #                 running = False
+
+                # Wait for user input (space bar press) to continue.
+                waiting = True
+                while waiting:
+                    # Process all events in the queue.
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                             running = False
+                            waiting = False
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_ESCAPE:
                                 running = False
+                                waiting = False
+                            elif event.key == pygame.K_SPACE:
+                                # Exit the loop	after space bar press.
+                                waiting = False
                     if not running:
                         break
+                    pygame.time.wait(100)
                 if not running:
                     break
 
