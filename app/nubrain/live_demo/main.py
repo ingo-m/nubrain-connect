@@ -23,13 +23,13 @@ def run_live_demo(cache: str):
 
     initial_rest_duration = 0.2
     pre_stimulus_interval = 1.1
-    image_duration = 1.1
+    # image_duration = 1.1
     post_stimulus_interval = 0.7
     # generated_image_duration = 3.0
     isi_jitter = 0.1
     inter_block_grey_duration = 0.1
 
-    image_generation_step_delay = 0.12
+    image_generation_step_delay = 0.2
 
     global_config = GlobalConfig()
 
@@ -170,19 +170,26 @@ def run_live_demo(cache: str):
                 # *** Stimulus period
 
                 pygame.display.flip()
-                t_stim_start = time()  # Start of stimulus presentation.
+                # t_stim_start = time()  # Start of stimulus presentation.
 
-                # Wait for image duration, but check for responses continuously.
-                t_stim_end_expected = t_stim_start + image_duration
-                while time() < t_stim_end_expected:
+                # Wait for user input (space bar press) to continue.
+                waiting = True
+                while waiting:
+                    # Process all events in the queue.
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                             running = False
+                            waiting = False
                         if event.type == pygame.KEYDOWN:
                             if event.key == pygame.K_ESCAPE:
                                 running = False
+                                waiting = False
+                            elif event.key == pygame.K_SPACE:
+                                # Exit the loop	after space bar press.
+                                waiting = False
                     if not running:
                         break
+                    pygame.time.wait(100)
                 if not running:
                     break
 
