@@ -8,9 +8,9 @@ import numpy as np
 import pygame
 
 from nubrain.device.device_interface import create_eeg_device
-from nubrain.experiment.data import eeg_data_logging
-from nubrain.experiment.global_config import GlobalConfig
-from nubrain.experiment.randomize_conditions import (
+from nubrain.experiment_image.data import eeg_data_logging
+from nubrain.experiment_image.global_config import GlobalConfig
+from nubrain.experiment_image.randomize_conditions import (
     create_balanced_list,
     sample_next_image,
     shuffle_with_repetitions,

@@ -19,9 +19,9 @@ import pygame
 import websockets
 
 from nubrain.device.device_interface import create_eeg_device
-from nubrain.experiment.data import eeg_data_logging
-from nubrain.experiment.global_config import GlobalConfig
-from nubrain.experiment.randomize_conditions import (
+from nubrain.experiment_image.data import eeg_data_logging
+from nubrain.experiment_image.global_config import GlobalConfig
+from nubrain.experiment_image.randomize_conditions import (
     sample_next_image,
 )
 from nubrain.experiment_eeg_to_image_v1.tone import generate_tone

@@ -4,7 +4,7 @@ from time import time
 import h5py
 import numpy as np
 
-from nubrain.experiment.global_config import GlobalConfig
+from nubrain.experiment_image.global_config import GlobalConfig
 from nubrain.image.tools import load_image_as_bytes, resize_image
 
 global_config = GlobalConfig()
