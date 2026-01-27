@@ -16,14 +16,15 @@ from nubrain.text.tools import load_and_preprocess_text
 # -----------------------------------------------------------------------------
 
 word_idx_start = 0
-n_words_to_show = 1000
+n_words_to_show = 100
 
 stimulus_font_size = 32
 
-n_target_events = 10
+n_target_events = 4
 
-path_text = "/home/john/Dropbox/Deep_Learning/Ernest_Hemingway/redacted/Hemingway_1926_Men_without_Women.txt"
+# path_text = "/home/john/Dropbox/Deep_Learning/Ernest_Hemingway/redacted/Hemingway_1926_Men_without_Women.txt"
 # path_text = "/home/john/Dropbox/Deep_Learning/Ice_and_Fire/books/asoiaf_book_01.txt"
+path_text = "/home/john/Desktop/test.txt"
 
 # Load text from file.
 text = load_and_preprocess_text(path_text=path_text)
@@ -32,15 +33,15 @@ text = load_and_preprocess_text(path_text=path_text)
 text = text[word_idx_start : (word_idx_start + n_words_to_show)]
 
 # Random target events. In case of a target event, the word will be repeated.
-target_event_word_idcs = sample_target_events(
+text_and_targets = sample_target_events(
     text=text,
     n_words_to_show=n_words_to_show,
     n_target_events=n_target_events,
     min_distance_targets=3,
 )
 
-
-
+text = text_and_targets["text_with_targets"]
+is_target = text_and_targets["is_target"]
 
 
 # -----------------------------------------------------------------------------

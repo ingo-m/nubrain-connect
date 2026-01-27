@@ -11,7 +11,7 @@ def get_target_events(*, text: list[str]):
         this_word = text[idx_word]
         next_word = text[idx_word + 1]
         if this_word == next_word:
-            target_event_idcs.append(idx_word)
+            target_event_idcs.append(idx_word + 1)
 
     return target_event_idcs
 
@@ -70,7 +70,11 @@ def sample_target_events(
     if n_words_to_show <= (n_target_events * min_distance_targets * 2):
         raise AssertionError("Too many target events")
 
-    # Check for "naturally" occuring target events (i.e. repeated words) in text.
+    # ----------------------------------------------------------------------------------
+    # *** Process "naturally" occurring target events
+
+    # Check for "naturally" occurring target events (i.e. repeated words) in the
+    # original text.
     natural_target_event_idcs = get_target_events(text=text)
     n_natural_target_event_idcs = len(natural_target_event_idcs)
     print(
@@ -82,7 +86,7 @@ def sample_target_events(
     # text).
     text = remove_double_repeats(text=text)
 
-    # Check for "naturally" occuring target events (i.e. repeated words) in text after
+    # Check for "naturally" occurring target events (i.e. repeated words) in text after
     # removing double repeats.
     natural_target_event_idcs = get_target_events(text=text)
     n_natural_target_event_idcs = len(natural_target_event_idcs)
@@ -105,9 +109,7 @@ def sample_target_events(
 
         if natural_targets_too_close is not None:
             context = " ".join(
-                text[
-                    (natural_targets_too_close - 10) : (natural_targets_too_close + 10)
-                ]
+                text[(natural_targets_too_close - 4) : (natural_targets_too_close + 4)]
             )
             print(
                 "Natural target events too close, removing double target event: "
@@ -117,14 +119,14 @@ def sample_target_events(
             text.pop(natural_targets_too_close)  # Remove the xth word
 
             new_context = " ".join(
-                text[(natural_targets_too_close - 10) : (natural_targets_too_close + 9)]
+                text[(natural_targets_too_close - 4) : (natural_targets_too_close + 3)]
             )
             print(f"Context after removing double target event: {new_context}")
 
         else:
             done = True
 
-    # Check for "naturally" occuring target events (i.e. repeated words) in text after
+    # Check for "naturally" occurring target events (i.e. repeated words) in text after
     # removing double target events.
     natural_target_event_idcs = get_target_events(text=text)
     n_natural_target_event_idcs = len(natural_target_event_idcs)
@@ -134,8 +136,14 @@ def sample_target_events(
         f"{n_natural_target_event_idcs}"
     )
 
+    # ----------------------------------------------------------------------------------
+    # *** Sample random target events
+
     done = False
     while not done:
+        # Check if we need to add additional, randomly sampled target events (in
+        # addition to potentially occurring "natural" target events in the original
+        # text).
         if n_natural_target_event_idcs < n_target_events:
             # Indices of target events (on a target event, the word will be repeated).
             # For example, a target event index of 7 means that the 7th word in the text
@@ -152,6 +160,8 @@ def sample_target_events(
 
         target_event_word_idcs = sorted(target_event_word_idcs)
 
+        # Check whether the randomly sampled target events are too close to each other
+        # or to the "natural" target events.
         targets_too_close = check_targets_too_close(
             target_idcs=target_event_word_idcs,
             min_distance_targets=min_distance_targets,
@@ -166,4 +176,34 @@ def sample_target_events(
             done = True
             break
 
-    return target_event_word_idcs
+    # ----------------------------------------------------------------------------------
+    # *** Add the target events (repeated words) to the text
+
+    # We need to add the randomly sampled target events (word repetitions) to the text,
+    # but not the "naturally" occurring target events (because those are already in the
+    # text).
+    text_with_targets = []
+    is_target = []  # Boolean list
+
+    for idx_word, word in enumerate(text):
+        if idx_word in natural_target_event_idcs:
+            # The current word is a "natural" target event (i.e. a word repetition in
+            # the original text).
+            text_with_targets.append(word)
+            is_target.append(True)
+        elif idx_word in target_event_word_idcs:  # This has to be elif
+            # This is a randomly sampled target event. Note that it is important that
+            # this is not a "natural" target event, hence the `elif` after checking for
+            # a "natural" target. Append the word twice (so that there is a repetition).
+            text_with_targets.extend([word, word])
+            # The second occurrence of the word is the target event.
+            is_target.extend([False, True])
+        else:
+            # The current word is not a target event.
+            text_with_targets.append(word)
+            is_target.append(False)
+
+    return {
+        "text_with_targets": text_with_targets,
+        "is_target": is_target,
+    }
