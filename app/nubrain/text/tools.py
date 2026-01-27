@@ -10,7 +10,7 @@ def exclude_invalid_chars(*, text: str):
     text = text.replace("_", " ")
 
     chars_allowed = set(
-        " ,-.:;“”'‘’()$!?"
+        " ,-.:;“”'‘’()!?…"
         + '"'
         + "0123456789"
         + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"

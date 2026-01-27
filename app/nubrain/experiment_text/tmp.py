@@ -9,19 +9,39 @@ import pygame
 from nubrain.device.device_interface import create_eeg_device
 from nubrain.experiment_image.data import eeg_data_logging
 from nubrain.experiment_image.global_config import GlobalConfig
+from nubrain.experiment_text.random_target_events import sample_target_events
 from nubrain.misc.datetime import get_formatted_current_datetime
 from nubrain.text.tools import load_and_preprocess_text
 
 # -----------------------------------------------------------------------------
-# Load text
 
 word_idx_start = 0
 n_words_to_show = 1000
 
 stimulus_font_size = 32
 
+n_target_events = 10
+
 path_text = "/home/john/Dropbox/Deep_Learning/Ernest_Hemingway/redacted/Hemingway_1926_Men_without_Women.txt"
+# path_text = "/home/john/Dropbox/Deep_Learning/Ice_and_Fire/books/asoiaf_book_01.txt"
+
+# Load text from file.
 text = load_and_preprocess_text(path_text=path_text)
+
+# Select subset of text.
+text = text[word_idx_start : (word_idx_start + n_words_to_show)]
+
+# Random target events. In case of a target event, the word will be repeated.
+target_event_word_idcs = sample_target_events(
+    text=text,
+    n_words_to_show=n_words_to_show,
+    n_target_events=n_target_events,
+    min_distance_targets=3,
+)
+
+
+
+
 
 # -----------------------------------------------------------------------------
 
