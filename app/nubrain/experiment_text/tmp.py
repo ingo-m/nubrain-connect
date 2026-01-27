@@ -10,6 +10,7 @@ from nubrain.device.device_interface import create_eeg_device
 from nubrain.experiment_image.data import eeg_data_logging
 from nubrain.experiment_image.global_config import GlobalConfig
 from nubrain.misc.datetime import get_formatted_current_datetime
+from nubrain.text.tools import load_and_preprocess_text
 
 # -----------------------------------------------------------------------------
 # Load text
@@ -20,46 +21,7 @@ n_words_to_show = 1000
 stimulus_font_size = 32
 
 path_text = "/home/john/Dropbox/Deep_Learning/Ernest_Hemingway/redacted/Hemingway_1926_Men_without_Women.txt"
-
-with open(path_text, "r") as file:
-    text = file.read()
-
-text = text.replace("\n", " ")
-text = text.replace("—", " ")
-text = text.replace("_", " ")
-
-chars_allowed = set(
-    " ,-.:;“”'‘’()$!?"
-    + '"'
-    + "0123456789"
-    + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    + "abcdefghijklmnopqrstuvwxyz"
-    + "ÁÂÃÄÅÆÇÈÉÊËÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝ"
-    + "ÞßàáâãäåæçèéêëíîïðñòóôõöøùúûüýþÿŌōŞşŪūŸŻż"
-)
-
-text_filtered = []
-
-for idx_char in range(len(text)):
-    char = text[idx_char]
-    if char not in chars_allowed:
-        # Remove invalid character.
-        try:
-            context = text[(idx_char - 10) : (idx_char + 10)]
-        except KeyError:
-            context = None
-        print(f"Removing char: {char} | Context: {context}")
-    else:
-        # Add valid character to filtered text.
-        text_filtered.append(char)
-
-text_filtered = "".join(text_filtered)
-
-text = text_filtered.split(" ")
-del text_filtered
-
-# Remove empty strings.
-text = [x for x in text if len(x) > 0]
+text = load_and_preprocess_text(path_text=path_text)
 
 # -----------------------------------------------------------------------------
 
