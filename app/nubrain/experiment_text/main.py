@@ -7,8 +7,8 @@ import numpy as np
 import pygame
 
 from nubrain.device.device_interface import create_eeg_device
-from nubrain.experiment_image.data import eeg_data_logging
-from nubrain.experiment_image.global_config import GlobalConfig
+from nubrain.experiment_text.data import eeg_data_logging
+from nubrain.experiment_text.global_config import GlobalConfig
 from nubrain.experiment_text.random_target_events import sample_target_events
 from nubrain.misc.datetime import get_formatted_current_datetime
 from nubrain.text.tools import load_and_preprocess_text
@@ -21,28 +21,11 @@ n_words_to_show = 100
 stimulus_font_size = 32
 
 n_target_events = 4
+min_distance_targets = 3
 
 # path_text = "/home/john/Dropbox/Deep_Learning/Ernest_Hemingway/redacted/Hemingway_1926_Men_without_Women.txt"
 # path_text = "/home/john/Dropbox/Deep_Learning/Ice_and_Fire/books/asoiaf_book_01.txt"
 path_text = "/home/john/Desktop/test.txt"
-
-# Load text from file.
-text = load_and_preprocess_text(path_text=path_text)
-
-# Select subset of text.
-text = text[word_idx_start : (word_idx_start + n_words_to_show)]
-
-# Random target events. In case of a target event, the word will be repeated.
-text_and_targets = sample_target_events(
-    text=text,
-    n_target_events=n_target_events,
-    min_distance_targets=3,
-)
-
-text = text_and_targets["text_with_targets"]
-is_target = text_and_targets["is_target"]
-
-sum(is_target)
 
 # -----------------------------------------------------------------------------
 
@@ -61,20 +44,19 @@ def experiment(config: dict):
     session_id = config["session_id"]
 
     output_directory = config["output_directory"]
-    image_directory = config["image_directory"]
+    path_text = config["path_text"]
 
     eeg_channel_mapping = config.get("eeg_channel_mapping", None)
 
     utility_frequency = config["utility_frequency"]
 
     initial_rest_duration = config["initial_rest_duration"]
-    image_duration = config["image_duration"]
+    stimulus_duration = config["stimulus_duration"]
     isi_duration = config["isi_duration"]
     isi_jitter = config["isi_jitter"]
     inter_block_grey_duration = config["inter_block_grey_duration"]
 
-    n_blocks = config["n_blocks"]
-    images_per_block = config["images_per_block"]
+    stimuli_per_block = config["stimuli_per_block"]
     n_target_events = config["n_target_events"]
 
     response_window_duration = config["response_window_duration"]
@@ -98,7 +80,21 @@ def experiment(config: dict):
     # ----------------------------------------------------------------------------------
     # *** Load text
 
-    # TODO
+    # Load text from file.
+    text = load_and_preprocess_text(path_text=path_text)
+
+    # Select subset of text.
+    text = text[word_idx_start : (word_idx_start + n_words_to_show)]
+
+    # Random target events. In case of a target event, the word will be repeated.
+    text_and_targets = sample_target_events(
+        text=text,
+        n_target_events=n_target_events,
+        min_distance_targets=min_distance_targets,
+    )
+
+    text = text_and_targets["text_with_targets"]
+    is_target = text_and_targets["is_target"]
 
     # ----------------------------------------------------------------------------------
     # *** Prepare EEG measurement
@@ -163,7 +159,7 @@ def experiment(config: dict):
         "device_type": device_type,
         "subject_id": subject_id,
         "session_id": session_id,
-        "image_directory": image_directory,
+        "path_text": path_text,
         # EEG parameters
         "eeg_board_description": eeg_board_description,
         "eeg_sampling_rate": eeg_sampling_rate,
@@ -174,12 +170,18 @@ def experiment(config: dict):
         "eeg_device_address": eeg_device_address,
         # Timing parameters
         "initial_rest_duration": initial_rest_duration,
-        "image_duration": image_duration,
+        "stimulus_duration": stimulus_duration,
         "isi_duration": isi_duration,
+        "isi_jitter": isi_jitter,
         "inter_block_grey_duration": inter_block_grey_duration,
+        "response_window_duration": response_window_duration,
         # Experiment structure
-        "n_blocks": n_blocks,
-        "images_per_block": images_per_block,
+        "word_idx_start": word_idx_start,
+        "n_words_to_show": n_words_to_show,
+        "n_target_events": n_target_events,
+        "min_distance_targets": min_distance_targets,
+        "stimuli_per_block": stimuli_per_block,
+        "stimulus_font_size": stimulus_font_size,
         # Misc
         "utility_frequency": utility_frequency,
         "path_out_data": path_out_data,
@@ -196,7 +198,7 @@ def experiment(config: dict):
     # Performance counters.
     n_hits = 0
     n_false_alarms = 0
-    n_total_targets = 0
+    n_total_targets = sum(is_target)
 
     running = True
     while running:
@@ -229,12 +231,12 @@ def experiment(config: dict):
             # Pause for specified number of milliseconds.
             pygame.time.delay(int(round(initial_rest_duration * 1000.0)))
 
+            block_counter = 0  # Count stimuli to introduce breaks between blocks
+
             # Loop through words.
-            for idx_word in range(word_idx_start, (word_idx_start + n_words_to_show)):
+            for word, is_target_event in zip(text, is_target):
                 if not running:  # Check for quit event
                     break
-
-                word = text[idx_word]
 
                 stimulus_text = stimulus_font.render(word, True, (0, 0, 0))
                 stimulus_rect = stimulus_text.get_rect(
@@ -243,8 +245,6 @@ def experiment(config: dict):
                 screen.blit(stimulus_text, stimulus_rect)
                 pygame.display.flip()
                 t_stim_start = time()  # Start of stimulus presentation.
-
-                # TODO Log word ?
 
                 # Insert stimulus start marker and get its timestamp.
                 marker_val, marker_ts = eeg_device.insert_marker(
@@ -270,19 +270,12 @@ def experiment(config: dict):
                         }
                     )
 
-                # Determine if the current trial is a target event.
-                # TODO Target events
-                is_target_event = False
-                # if idx_trial > 0 and next_image_category == previous_image_category:
-                #     is_target_event = True
-                #     n_total_targets += 1
-
                 response_made = False
                 response_time = np.nan
                 response_deadline = t_stim_start + response_window_duration
 
-                # Wait for image duration, but check for responses continuously.
-                t_stim_end_expected = t_stim_start + image_duration
+                # Wait for stimulus duration, but check for responses continuously.
+                t_stim_end_expected = t_stim_start + stimulus_duration
                 while time() < t_stim_end_expected:
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
@@ -373,8 +366,7 @@ def experiment(config: dict):
                     "stimulus_start_time": t_stim_start,
                     "stimulus_end_time": t_stim_end_actual,
                     "stimulus_duration_s": t_stim_end_actual - t_stim_start,
-                    "image_file_path": "dummy",  # TODO remove, log word instead
-                    "image_category": "dummy",  # TODO remove, log word instead
+                    "word": word,
                     "is_target_event": is_target_event,
                     "response_time_s": response_time,
                 }
@@ -392,14 +384,15 @@ def experiment(config: dict):
                         {"type": "eeg", "eeg_data": eeg_data, "eeg_timestamps": eeg_ts}
                     )
 
-                # Inter-block grey screen.
-                screen.fill(global_config.rest_condition_color)
-                pygame.display.flip()
-                # We already waited for the ISI duration, therefore subtract it from the
-                # inter block duration. Avoid negative value in case ISI duration is
-                # longer than inter block duration.
-                remaining_wait = max((inter_block_grey_duration - isi_duration), 0.0)
-                pygame.time.delay(int(round(remaining_wait * 1000.0)))
+                block_counter += 1
+
+                if block_counter == stimuli_per_block:
+                    # Inter-block grey screen.
+                    screen.fill(global_config.rest_condition_color)
+                    pygame.display.flip()
+                    pygame.time.delay(int(round(inter_block_grey_duration * 1000.0)))
+
+            # End of word loop.
 
             # Calculate behavioural results.
             n_misses = n_total_targets - n_hits
