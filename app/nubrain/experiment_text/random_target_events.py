@@ -22,8 +22,10 @@ def check_targets_too_close(*, target_idcs: list[int], min_distance_targets: int
     """
     targets_too_close = None
 
+    target_idcs = sorted(target_idcs)
+
     # Loop over target events.
-    for idx_sample in range(len(target_idcs) - min_distance_targets):
+    for idx_sample in range(0, (len(target_idcs) - 1)):
         # Current target event (word index, e.g. 7 would correspond to the 7th word
         # in the text.
         target_idx = target_idcs[idx_sample]
@@ -63,11 +65,11 @@ def remove_double_repeats(*, text: list[str]):
 def sample_target_events(
     *,
     text: list[str],
-    n_words_to_show: int,
     n_target_events: int,
     min_distance_targets: int = 3,
 ):
-    if n_words_to_show <= (n_target_events * min_distance_targets * 2):
+    n_words = len(text)
+    if n_words <= (n_target_events * min_distance_targets * 2):
         raise AssertionError("Too many target events")
 
     # ----------------------------------------------------------------------------------
@@ -76,10 +78,9 @@ def sample_target_events(
     # Check for "naturally" occurring target events (i.e. repeated words) in the
     # original text.
     natural_target_event_idcs = get_target_events(text=text)
-    n_natural_target_event_idcs = len(natural_target_event_idcs)
+    n_natural_target_events = len(natural_target_event_idcs)
     print(
-        "Number of 'natural' target events (repeated words): "
-        f"{n_natural_target_event_idcs}"
+        f"Number of 'natural' target events (repeated words): {n_natural_target_events}"
     )
 
     # Remove potential double repeats (among 'natural' target events in the original
@@ -89,11 +90,11 @@ def sample_target_events(
     # Check for "naturally" occurring target events (i.e. repeated words) in text after
     # removing double repeats.
     natural_target_event_idcs = get_target_events(text=text)
-    n_natural_target_event_idcs = len(natural_target_event_idcs)
+    n_natural_target_events = len(natural_target_event_idcs)
     print(
         "Number of 'natural' target events (repeated words) after removing potential "
         "double repeats: "
-        f"{n_natural_target_event_idcs}"
+        f"{n_natural_target_events}"
     )
 
     # If necessary, remove double target events (note that previously, words that
@@ -129,28 +130,31 @@ def sample_target_events(
     # Check for "naturally" occurring target events (i.e. repeated words) in text after
     # removing double target events.
     natural_target_event_idcs = get_target_events(text=text)
-    n_natural_target_event_idcs = len(natural_target_event_idcs)
+    n_natural_target_events = len(natural_target_event_idcs)
     print(
         "Number of 'natural' target events (repeated words) after removing potential "
         "double target events: "
-        f"{n_natural_target_event_idcs}"
+        f"{n_natural_target_events}"
     )
 
     # ----------------------------------------------------------------------------------
     # *** Sample random target events
+
+    # Update number of words after potentially removing natural / double target events.
+    n_words = len(text)
 
     done = False
     while not done:
         # Check if we need to add additional, randomly sampled target events (in
         # addition to potentially occurring "natural" target events in the original
         # text).
-        if n_natural_target_event_idcs < n_target_events:
+        if n_natural_target_events < n_target_events:
             # Indices of target events (on a target event, the word will be repeated).
             # For example, a target event index of 7 means that the 7th word in the text
             # will be a target event (and will be repeated).
             target_event_word_idcs = random.sample(
-                range(0, n_words_to_show),
-                (n_target_events - n_natural_target_event_idcs),
+                range(1, (n_words - 1)),
+                (n_target_events - n_natural_target_events),
             )
             target_event_word_idcs = target_event_word_idcs + natural_target_event_idcs
         else:
@@ -168,7 +172,7 @@ def sample_target_events(
         )
 
         if targets_too_close:
-            print(f"Target events too close: {targets_too_close} | Will sample again.")
+            print("Target events too close. Will sample again.")
             continue
         else:
             # Targets are not too close, we can keep the randomly samples target event

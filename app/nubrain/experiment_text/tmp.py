@@ -35,7 +35,6 @@ text = text[word_idx_start : (word_idx_start + n_words_to_show)]
 # Random target events. In case of a target event, the word will be repeated.
 text_and_targets = sample_target_events(
     text=text,
-    n_words_to_show=n_words_to_show,
     n_target_events=n_target_events,
     min_distance_targets=3,
 )
@@ -43,6 +42,7 @@ text_and_targets = sample_target_events(
 text = text_and_targets["text_with_targets"]
 is_target = text_and_targets["is_target"]
 
+sum(is_target)
 
 # -----------------------------------------------------------------------------
 
