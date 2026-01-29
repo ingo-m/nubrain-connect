@@ -33,7 +33,7 @@ path_text = "/home/john/Desktop/test.txt"
 mp.set_start_method("spawn", force=True)  # Necessary on if running on windows?
 
 
-def experiment(config: dict):
+def experiment_text(config: dict):
     # ----------------------------------------------------------------------------------
     # *** Get config
 

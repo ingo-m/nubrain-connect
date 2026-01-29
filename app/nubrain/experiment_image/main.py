@@ -21,7 +21,7 @@ from nubrain.misc.datetime import get_formatted_current_datetime
 mp.set_start_method("spawn", force=True)  # Necessary on if running on windows?
 
 
-def experiment(config: dict):
+def experiment_image(config: dict):
     # ----------------------------------------------------------------------------------
     # *** Get config
 
