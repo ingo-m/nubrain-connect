@@ -13,23 +13,6 @@ from nubrain.experiment_text.random_target_events import sample_target_events
 from nubrain.misc.datetime import get_formatted_current_datetime
 from nubrain.text.tools import load_and_preprocess_text
 
-# -----------------------------------------------------------------------------
-
-word_idx_start = 0
-n_words_to_show = 100
-
-stimulus_font_size = 32
-
-n_target_events = 4
-min_distance_targets = 3
-
-# path_text = "/home/john/Dropbox/Deep_Learning/Ernest_Hemingway/redacted/Hemingway_1926_Men_without_Women.txt"
-# path_text = "/home/john/Dropbox/Deep_Learning/Ice_and_Fire/books/asoiaf_book_01.txt"
-path_text = "/home/john/Desktop/test.txt"
-
-# -----------------------------------------------------------------------------
-
-
 mp.set_start_method("spawn", force=True)  # Necessary on if running on windows?
 
 
@@ -55,11 +38,14 @@ def experiment_text(config: dict):
     isi_duration = config["isi_duration"]
     isi_jitter = config["isi_jitter"]
     inter_block_grey_duration = config["inter_block_grey_duration"]
-
-    stimuli_per_block = config["stimuli_per_block"]
-    n_target_events = config["n_target_events"]
-
     response_window_duration = config["response_window_duration"]
+
+    word_idx_start = config["word_idx_start"]
+    n_words_to_show = config["n_words_to_show"]
+    n_target_events = config["n_target_events"]
+    min_distance_targets = config["min_distance_targets"]
+    stimuli_per_block = config["stimuli_per_block"]
+    stimulus_font_size = config["stimulus_font_size"]
 
     eeg_device_address = config.get("eeg_device_address", None)
 
@@ -391,6 +377,7 @@ def experiment_text(config: dict):
                     screen.fill(global_config.rest_condition_color)
                     pygame.display.flip()
                     pygame.time.delay(int(round(inter_block_grey_duration * 1000.0)))
+                    block_counter = 0
 
             # End of word loop.
 
