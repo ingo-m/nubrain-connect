@@ -33,12 +33,12 @@ sudo nano /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 
 conda activate py-nubrain
 
-nubrain --config=/path/to/example_config.yaml
+nubrain --mode=data_collection_image --config=/path/to/example_config.yaml
 ```
 
 # Demo mode
 
 ```bash
 conda activate py-nubrain
-nubrain --live_demo --config /path/to/cached.pickle
+nubrain --mode=eeg_to_image_live_demo --config=/path/to/cached.pickle
 ```

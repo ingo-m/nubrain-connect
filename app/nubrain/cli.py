@@ -51,7 +51,7 @@ def main():
     parser.add_argument(
         "--mode",
         type=str,
-        default="",
+        default="data_collection_image",
         help="Which experimental mode to use",
     )
 
