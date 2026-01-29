@@ -37,7 +37,7 @@ path_text: "C:\\experiments\\example.txt"
 
 # Timing parameters:
 initial_rest_duration: 3.0
-stimulus_duration: 0.6
+stimulus_duration: 0.5
 isi_duration: 0.1
 isi_jitter: 0.1 # Random jitter up to x seconds added to ISI
 inter_block_grey_duration: 8.0
@@ -47,7 +47,7 @@ word_idx_start: 0
 n_words_to_show: 200
 n_target_events: 10
 min_distance_targets: 5
-stimuli_per_block: 50
+stimuli_per_block: 100
 stimulus_font_size: 64
 
 # Not needed for DSI-24, leave as null or omit
