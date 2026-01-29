@@ -46,13 +46,13 @@ def eeg_data_logging(subprocess_params: dict):
     stimuli_per_block = subprocess_params["stimuli_per_block"]
     stimulus_font_size = subprocess_params["stimulus_font_size"]
 
+    # Text and targets
+    text = subprocess_params["text"]  # List of str
+    is_target = subprocess_params["is_target"]  # List of bool
+
+    # Misc
     utility_frequency = subprocess_params["utility_frequency"]
-
-    # nubrain_endpoint = subprocess_params["nubrain_endpoint"]
-    # nubrain_api_key = subprocess_params["nubrain_api_key"]
-
     path_out_data = subprocess_params["path_out_data"]
-
     data_logging_queue = subprocess_params["data_logging_queue"]
 
     # ----------------------------------------------------------------------------------
@@ -86,6 +86,9 @@ def eeg_data_logging(subprocess_params: dict):
         "min_distance_targets": min_distance_targets,
         "stimuli_per_block": stimuli_per_block,
         "stimulus_font_size": stimulus_font_size,
+        # Text and targets
+        "text": text,  # List of str
+        "is_target": is_target,  # List of bool
         # Misc
         "utility_frequency": utility_frequency,
     }
@@ -170,7 +173,7 @@ def eeg_data_logging(subprocess_params: dict):
 
         file.create_dataset(
             "stimulus_data",
-            (n_words_to_show,),
+            (len(text),),
             dtype=stimulus_dtype,
         )
 

@@ -168,6 +168,9 @@ def experiment_text(config: dict):
         "min_distance_targets": min_distance_targets,
         "stimuli_per_block": stimuli_per_block,
         "stimulus_font_size": stimulus_font_size,
+        # Text and targets
+        "text": text,  # List of str
+        "is_target": is_target,  # List of bool
         # Misc
         "utility_frequency": utility_frequency,
         "path_out_data": path_out_data,
