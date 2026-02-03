@@ -4,20 +4,27 @@ def load_text(*, path_text: str):
     return text
 
 
+class PunctuationChars:
+    def __init__(self):
+        self.allowed = set(" ,-.:;“”'‘’()!?…" + '"')
+
+
 def exclude_invalid_chars(*, text: str):
     text = text.replace("\n", " ")
     text = text.replace("—", " ")
     text = text.replace("_", " ")
 
-    chars_allowed = set(
-        " ,-.:;“”'‘’()!?…"
-        + '"'
-        + "0123456789"
+    punctuation_chars = PunctuationChars().allowed
+
+    alphanumeric_chars_allowed = set(
+        "0123456789"
         + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         + "abcdefghijklmnopqrstuvwxyz"
         + "ÁÂÃÄÅÆÇÈÉÊËÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝ"
         + "ÞßàáâãäåæçèéêëíîïðñòóôõöøùúûüýþÿŌōŞşŪūŸŻż"
     )
+
+    chars_allowed = alphanumeric_chars_allowed | punctuation_chars
 
     text_filtered = []
 
