@@ -504,7 +504,7 @@ def experiment_text(config: dict):
                 screen.fill(global_config.rest_condition_color)
 
                 # Behavioural results title.
-                title_font = pygame.font.Font(file_path=None, size=72)
+                title_font = pygame.font.Font(None, 72)
                 title_text = title_font.render(
                     "Experiment Complete",
                     True,
@@ -516,7 +516,7 @@ def experiment_text(config: dict):
                 screen.blit(title_text, title_rect)
 
                 # Behavioural results text.
-                results_font = pygame.font.Font(file_path=None, size=56)
+                results_font = pygame.font.Font(None, 56)
                 hits_text = results_font.render(
                     f"Hits: {n_hits}",
                     True,
