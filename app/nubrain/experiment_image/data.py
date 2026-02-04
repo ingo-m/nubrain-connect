@@ -4,10 +4,10 @@ from time import time
 import h5py
 import numpy as np
 
-from nubrain.experiment_image.global_config import GlobalConfig
+from nubrain.experiment_image.image_config import ImageConfig
 from nubrain.image.tools import load_image_as_bytes, resize_image
 
-global_config = GlobalConfig()
+image_config = ImageConfig()
 
 
 def eeg_data_logging(subprocess_params: dict):
@@ -55,15 +55,15 @@ def eeg_data_logging(subprocess_params: dict):
     # *** Create and initialize HDF5 file
 
     experiment_metadata = {
-        "config_version": global_config.config_version,
+        "config_version": image_config.config_version,
         "subject_id": subject_id,
         "session_id": session_id,
         "image_directory": image_directory,
-        "rest_condition_color": global_config.rest_condition_color,
-        "stim_start_marker": global_config.stim_start_marker,
-        "stim_end_marker": global_config.stim_end_marker,
-        "hdf5_dtype": global_config.hdf5_dtype,
-        "max_img_storage_dimension": global_config.max_img_storage_dimension,
+        "rest_condition_color": image_config.rest_condition_color,
+        "stim_start_marker": image_config.stim_start_marker,
+        "stim_end_marker": image_config.stim_end_marker,
+        "hdf5_dtype": image_config.hdf5_dtype,
+        "max_img_storage_dimension": image_config.max_img_storage_dimension,
         "experiment_start_time": time(),
         # EEG parameters
         "eeg_board_description": eeg_board_description,
@@ -124,7 +124,7 @@ def eeg_data_logging(subprocess_params: dict):
             "eeg_data",
             shape=(n_channels_total, 0),
             maxshape=(n_channels_total, None),  # fixed_channels, unlimited_timesteps
-            dtype=global_config.hdf5_dtype,
+            dtype=image_config.hdf5_dtype,
             chunks=True,
         )
 
