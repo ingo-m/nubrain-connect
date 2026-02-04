@@ -32,7 +32,7 @@ class EegExperimentConfig:
     isi_duration: float
     isi_jitter: float
     isi_extension_target: float
-    inter_block_grey_duration: float
+    inter_block_rest_duration: float
     response_window_duration: float
 
     # Experiment structure

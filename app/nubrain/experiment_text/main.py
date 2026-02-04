@@ -39,7 +39,7 @@ def experiment_text(config: dict):
     isi_duration = config["isi_duration"]
     isi_jitter = config["isi_jitter"]
     isi_extension_target = config["isi_extension_target"]
-    inter_block_grey_duration = config["inter_block_grey_duration"]
+    inter_block_rest_duration = config["inter_block_rest_duration"]
     response_window_duration = config["response_window_duration"]
 
     word_idx_start = config["word_idx_start"]
@@ -162,7 +162,7 @@ def experiment_text(config: dict):
         "isi_duration": isi_duration,
         "isi_jitter": isi_jitter,
         "isi_extension_target": isi_extension_target,
-        "inter_block_grey_duration": inter_block_grey_duration,
+        "inter_block_rest_duration": inter_block_rest_duration,
         "response_window_duration": response_window_duration,
         # Experiment structure
         "word_idx_start": word_idx_start,
@@ -203,16 +203,16 @@ def experiment_text(config: dict):
         # so the participant can close their eyes / rest.
 
         # How long before the end of the inter-block interval to play the audio cue.
-        pure_tone_end_delay = 0.6
+        pure_tone_end_delay = 1.0
 
         # Play the tone to cue the end of the inter-block interval x seconds before the
         # end of the inter-block interval.
         # Do not use the audio cue if the inter-block interval is too short.
-        if inter_block_grey_duration <= (pure_tone_end_delay + 0.1):
+        if inter_block_rest_duration <= (pure_tone_end_delay + 0.1):
             print(
                 "WARNING: Will not use audio cue for the end of the inter-block "
                 "interval because of short inter-block interval of "
-                f"{inter_block_grey_duration} s"
+                f"{inter_block_rest_duration} s"
             )
             use_ibi_audio_cue = False
         else:
@@ -226,16 +226,16 @@ def experiment_text(config: dict):
 
             # Generate the tone data.
             tone_data_start = generate_tone(
-                frequency=200,  # Pitch of the tone in Hz
-                duration=0.2,  # Duration of audio cue
-                amplitude=0.3,  # Volume, from 0.0 to 1.0
+                frequency=700,  # Pitch of the tone in Hz
+                duration=0.3,  # Duration of audio cue
+                amplitude=0.9,  # Volume, from 0.0 to 1.0
                 sample_rate=sample_rate,
             )
 
             tone_data_end = generate_tone(
-                frequency=800,  # Pitch of the tone in Hz
-                duration=0.2,  # Duration of audio cue
-                amplitude=0.3,  # Volume, from 0.0 to 1.0
+                frequency=1400,  # Pitch of the tone in Hz
+                duration=0.3,  # Duration of audio cue
+                amplitude=0.9,  # Volume, from 0.0 to 1.0
                 sample_rate=sample_rate,
             )
 
@@ -292,7 +292,11 @@ def experiment_text(config: dict):
                 if not running:  # Check for quit event
                     break
 
-                stimulus_text = stimulus_font.render(word, True, (0, 0, 0))
+                stimulus_text = stimulus_font.render(
+                    word,
+                    True,
+                    global_config.font_color,
+                )
                 stimulus_rect = stimulus_text.get_rect(
                     center=(screen_width // 2, screen_height // 2)
                 )
@@ -447,7 +451,7 @@ def experiment_text(config: dict):
                         pure_tone_start.play()
 
                     # End of inter-block interval.
-                    t_ibi_end = t_ibi_start + inter_block_grey_duration
+                    t_ibi_end = t_ibi_start + inter_block_rest_duration
 
                     if use_ibi_audio_cue:
                         # Time when to play audio cue to signal end of inter-block
@@ -500,21 +504,33 @@ def experiment_text(config: dict):
                 screen.fill(global_config.rest_condition_color)
 
                 # Behavioural results title.
-                title_font = pygame.font.Font(None, 72)
-                title_text = title_font.render("Experiment Complete", True, (0, 0, 0))
+                title_font = pygame.font.Font(file_path=None, size=72)
+                title_text = title_font.render(
+                    "Experiment Complete",
+                    True,
+                    global_config.font_color,
+                )
                 title_rect = title_text.get_rect(
                     center=(screen_width // 2, screen_height // 2 - 150)
                 )
                 screen.blit(title_text, title_rect)
 
                 # Behavioural results text.
-                results_font = pygame.font.Font(None, 56)
-                hits_text = results_font.render(f"Hits: {n_hits}", True, (0, 0, 0))
+                results_font = pygame.font.Font(file_path=None, size=56)
+                hits_text = results_font.render(
+                    f"Hits: {n_hits}",
+                    True,
+                    global_config.font_color,
+                )
                 misses_text = results_font.render(
-                    f"Misses: {n_misses}", True, (0, 0, 0)
+                    f"Misses: {n_misses}",
+                    True,
+                    global_config.font_color,
                 )
                 false_alarms_text = results_font.render(
-                    f"False Alarms: {n_false_alarms}", True, (0, 0, 0)
+                    f"False Alarms: {n_false_alarms}",
+                    True,
+                    global_config.font_color,
                 )
 
                 # Position and display results
