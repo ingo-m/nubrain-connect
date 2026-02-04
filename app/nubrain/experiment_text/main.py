@@ -37,6 +37,7 @@ def experiment_text(config: dict):
     stimulus_duration = config["stimulus_duration"]
     isi_duration = config["isi_duration"]
     isi_jitter = config["isi_jitter"]
+    isi_extension_target = config["isi_extension_target"]
     inter_block_grey_duration = config["inter_block_grey_duration"]
     response_window_duration = config["response_window_duration"]
 
@@ -159,6 +160,7 @@ def experiment_text(config: dict):
         "stimulus_duration": stimulus_duration,
         "isi_duration": isi_duration,
         "isi_jitter": isi_jitter,
+        "isi_extension_target": isi_extension_target,
         "inter_block_grey_duration": inter_block_grey_duration,
         "response_window_duration": response_window_duration,
         # Experiment structure
@@ -220,7 +222,19 @@ def experiment_text(config: dict):
             # Pause for specified number of milliseconds.
             pygame.time.delay(int(round(initial_rest_duration * 1000.0)))
 
-            block_counter = 0  # Count stimuli to introduce breaks between blocks
+            # Send pre-stimulus EEG data (to avoid buffer overflow).
+            eeg_data, eeg_ts = eeg_device.get_board_data()
+            if eeg_data.size > 0:
+                data_logging_queue.put(
+                    {
+                        "type": "eeg",
+                        "eeg_data": eeg_data,
+                        "eeg_timestamps": eeg_ts,
+                    }
+                )
+
+            # Count stimuli to introduce breaks between blocks.
+            stimulus_block_counter = 0
 
             # Loop through words.
             for word, is_target_event in zip(text, is_target):
@@ -245,17 +259,6 @@ def experiment_text(config: dict):
                             "type": "marker",
                             "marker_value": marker_val,
                             "timestamp": marker_ts,
-                        }
-                    )
-
-                # Send pre-stimulus EEG data (to avoid buffer overflow).
-                eeg_data, eeg_ts = eeg_device.get_board_data()
-                if eeg_data.size > 0:
-                    data_logging_queue.put(
-                        {
-                            "type": "eeg",
-                            "eeg_data": eeg_data,
-                            "eeg_timestamps": eeg_ts,
                         }
                     )
 
@@ -324,6 +327,13 @@ def experiment_text(config: dict):
                     + np.random.uniform(low=0.0, high=isi_jitter)
                 )
 
+                if is_target_event:
+                    # If this is a target event, prolong the ISI duration, to allow the
+                    # subject to respond before the onset of the next stimulus, to
+                    # reduce the probability of a motor response artefact in the
+                    # subsequent trial.
+                    t_isi_end += isi_extension_target
+
                 # Continue checking for late responses or quit events.
                 while time() < t_isi_end:
                     for event in pygame.event.get():
@@ -373,14 +383,25 @@ def experiment_text(config: dict):
                         {"type": "eeg", "eeg_data": eeg_data, "eeg_timestamps": eeg_ts}
                     )
 
-                block_counter += 1
+                stimulus_block_counter += 1
 
-                if block_counter == stimuli_per_block:
+                if stimulus_block_counter == stimuli_per_block:
                     # Inter-block grey screen.
                     screen.fill(global_config.rest_condition_color)
                     pygame.display.flip()
                     pygame.time.delay(int(round(inter_block_grey_duration * 1000.0)))
-                    block_counter = 0
+                    stimulus_block_counter = 0
+
+                    # Send inter-block EEG data (to avoid buffer overflow).
+                    eeg_data, eeg_ts = eeg_device.get_board_data()
+                    if eeg_data.size > 0:
+                        data_logging_queue.put(
+                            {
+                                "type": "eeg",
+                                "eeg_data": eeg_data,
+                                "eeg_timestamps": eeg_ts,
+                            }
+                        )
 
             # End of word loop.
 

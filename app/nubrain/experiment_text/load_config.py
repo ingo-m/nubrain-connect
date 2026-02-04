@@ -31,6 +31,7 @@ class EegExperimentConfig:
     stimulus_duration: float
     isi_duration: float
     isi_jitter: float
+    isi_extension_target: float
     inter_block_grey_duration: float
     response_window_duration: float
 
@@ -131,8 +132,10 @@ class EegExperimentConfig:
 
         # Ensure that the response window (in which the participant to an attention task
         # target event counts as a hit) end before the next trial.
-        # if (self.stimulus_duration + self.isi_duration) < self.response_window_duration:
-        #     raise ValueError("Response window is longer than trial duration")
+        if (
+            self.stimulus_duration + self.isi_duration + self.isi_extension_target
+        ) < self.response_window_duration:
+            raise ValueError("Response window is longer than trial duration")
 
         if self.n_target_events < 0:
             ValueError("Negativ number of target events")
