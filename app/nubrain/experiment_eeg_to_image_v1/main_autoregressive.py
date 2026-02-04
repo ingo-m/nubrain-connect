@@ -18,13 +18,13 @@ import numpy as np
 import pygame
 import websockets
 
+from nubrain.audio.tone import generate_tone
 from nubrain.device.device_interface import create_eeg_device
 from nubrain.experiment_image.data import eeg_data_logging
 from nubrain.experiment_image.global_config import GlobalConfig
 from nubrain.experiment_image.randomize_conditions import (
     sample_next_image,
 )
-from nubrain.experiment_eeg_to_image_v1.tone import generate_tone
 from nubrain.image.tools import (
     get_all_images,
     load_and_scale_image,

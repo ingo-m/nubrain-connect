@@ -6,6 +6,7 @@ from time import sleep, time
 import numpy as np
 import pygame
 
+from nubrain.audio.tone import generate_tone
 from nubrain.device.device_interface import create_eeg_device
 from nubrain.experiment_text.data import eeg_data_logging
 from nubrain.experiment_text.global_config import GlobalConfig
@@ -194,6 +195,56 @@ def experiment_text(config: dict):
     running = True
     while running:
         pygame.init()
+
+        # ------------------------------------------------------------------------------
+        # *** Prepare audio cues
+
+        # Use an audio cue at the beginning and at the end of the inter-block interval,
+        # so the participant can close their eyes / rest.
+
+        # How long before the end of the inter-block interval to play the audio cue.
+        pure_tone_end_delay = 0.6
+
+        # Play the tone to cue the end of the inter-block interval x seconds before the
+        # end of the inter-block interval.
+        # Do not use the audio cue if the inter-block interval is too short.
+        if inter_block_grey_duration <= (pure_tone_end_delay + 0.1):
+            print(
+                "WARNING: Will not use audio cue for the end of the inter-block "
+                "interval because of short inter-block interval of "
+                f"{inter_block_grey_duration} s"
+            )
+            use_ibi_audio_cue = False
+        else:
+            use_ibi_audio_cue = True
+
+        if use_ibi_audio_cue:
+            pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
+
+            # Get the sample rate from the mixer settings.
+            sample_rate = pygame.mixer.get_init()[0]
+
+            # Generate the tone data.
+            tone_data_start = generate_tone(
+                frequency=200,  # Pitch of the tone in Hz
+                duration=0.2,  # Duration of audio cue
+                amplitude=0.3,  # Volume, from 0.0 to 1.0
+                sample_rate=sample_rate,
+            )
+
+            tone_data_end = generate_tone(
+                frequency=800,  # Pitch of the tone in Hz
+                duration=0.2,  # Duration of audio cue
+                amplitude=0.3,  # Volume, from 0.0 to 1.0
+                sample_rate=sample_rate,
+            )
+
+            # Create a sound object from the numpy array.
+            pure_tone_start = pygame.sndarray.make_sound(tone_data_start)
+            pure_tone_end = pygame.sndarray.make_sound(tone_data_end)
+
+        # ------------------------------------------------------------------------------
+        # *** Prepare visual stimulus generation
 
         # Get screen dimensions and set up full screen.
         screen_info = pygame.display.Info()
@@ -389,7 +440,32 @@ def experiment_text(config: dict):
                     # Inter-block grey screen.
                     screen.fill(global_config.rest_condition_color)
                     pygame.display.flip()
-                    pygame.time.delay(int(round(inter_block_grey_duration * 1000.0)))
+                    t_ibi_start = time()  # Start of inter-block interval.
+
+                    if use_ibi_audio_cue:
+                        # Audio cue to signal the beginning of the inter-block interval.
+                        pure_tone_start.play()
+
+                    # End of inter-block interval.
+                    t_ibi_end = t_ibi_start + inter_block_grey_duration
+
+                    if use_ibi_audio_cue:
+                        # Time when to play audio cue to signal end of inter-block
+                        # interval.
+                        t_ibi_end_audio_cue = t_ibi_end - pure_tone_end_delay
+                        ibi_end_cue_played_yet = False
+
+                    while time() < t_ibi_end:  # Continue inter-block interval?
+                        if (
+                            use_ibi_audio_cue
+                            and (t_ibi_end_audio_cue <= time())
+                            and not ibi_end_cue_played_yet
+                        ):  # Time to play end of inter-block interval cue?
+                            # Play the cue to signal the end of the inter-block
+                            # interval.
+                            pure_tone_end.play()
+                            ibi_end_cue_played_yet = True
+
                     stimulus_block_counter = 0
 
                     # Send inter-block EEG data (to avoid buffer overflow).

@@ -10,8 +10,8 @@ from time import time
 import numpy as np
 import pygame
 
+from nubrain.audio.tone import generate_tone
 from nubrain.experiment_image.global_config import GlobalConfig
-from nubrain.experiment_eeg_to_image_v1.tone import generate_tone
 from nubrain.image.tools import (
     scale_image_surface,
 )
