@@ -4,9 +4,9 @@ from time import time
 import h5py
 import numpy as np
 
-from nubrain.experiment_text.global_config import GlobalConfig
+from nubrain.experiment_text.text_config import TextConfig
 
-global_config = GlobalConfig()
+text_config = TextConfig()
 
 
 def eeg_data_logging(subprocess_params: dict):
@@ -60,14 +60,14 @@ def eeg_data_logging(subprocess_params: dict):
     # *** Create and initialize HDF5 file
 
     experiment_metadata = {
-        "config_version": global_config.config_version,
+        "config_version": text_config.config_version,
         "subject_id": subject_id,
         "session_id": session_id,
         "path_text": path_text,
-        "rest_condition_color": global_config.rest_condition_color,
-        "stim_start_marker": global_config.stim_start_marker,
-        "stim_end_marker": global_config.stim_end_marker,
-        "hdf5_dtype": global_config.hdf5_dtype,
+        "rest_condition_color": text_config.rest_condition_color,
+        "stim_start_marker": text_config.stim_start_marker,
+        "stim_end_marker": text_config.stim_end_marker,
+        "hdf5_dtype": text_config.hdf5_dtype,
         "experiment_start_time": time(),
         # EEG parameters
         "eeg_board_description": eeg_board_description,
@@ -137,7 +137,7 @@ def eeg_data_logging(subprocess_params: dict):
             "eeg_data",
             shape=(n_channels_total, 0),
             maxshape=(n_channels_total, None),  # fixed_channels, unlimited_timesteps
-            dtype=global_config.hdf5_dtype,
+            dtype=text_config.hdf5_dtype,
             chunks=True,
         )
 

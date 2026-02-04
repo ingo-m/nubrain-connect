@@ -9,8 +9,8 @@ import pygame
 from nubrain.audio.tone import generate_tone
 from nubrain.device.device_interface import create_eeg_device
 from nubrain.experiment_text.data import eeg_data_logging
-from nubrain.experiment_text.global_config import GlobalConfig
 from nubrain.experiment_text.random_target_events import sample_target_events
+from nubrain.experiment_text.text_config import TextConfig
 from nubrain.misc.datetime import get_formatted_current_datetime
 from nubrain.text.tools import load_and_preprocess_text
 
@@ -51,7 +51,7 @@ def experiment_text(config: dict):
 
     eeg_device_address = config.get("eeg_device_address", None)
 
-    global_config = GlobalConfig()
+    text_config = TextConfig()
 
     # ----------------------------------------------------------------------------------
     # *** Test if output path exists
@@ -259,10 +259,10 @@ def experiment_text(config: dict):
         try:
             # Initial grey screen.
             pygame.time.wait(100)
-            screen.fill(global_config.rest_condition_color)
+            screen.fill(text_config.rest_condition_color)
             pygame.display.flip()
             pygame.time.wait(100)
-            screen.fill(global_config.rest_condition_color)
+            screen.fill(text_config.rest_condition_color)
             pygame.display.flip()
 
             stimulus_font = pygame.font.SysFont("timesnewroman", stimulus_font_size)
@@ -295,7 +295,7 @@ def experiment_text(config: dict):
                 stimulus_text = stimulus_font.render(
                     word,
                     True,
-                    global_config.font_color,
+                    text_config.font_color,
                 )
                 stimulus_rect = stimulus_text.get_rect(
                     center=(screen_width // 2, screen_height // 2)
@@ -306,7 +306,7 @@ def experiment_text(config: dict):
 
                 # Insert stimulus start marker and get its timestamp.
                 marker_val, marker_ts = eeg_device.insert_marker(
-                    global_config.stim_start_marker
+                    text_config.stim_start_marker
                 )
                 if marker_val is not None:
                     data_logging_queue.put(
@@ -349,12 +349,12 @@ def experiment_text(config: dict):
                     break
 
                 # End of stimulus presentation. Display ISI grey screen.
-                screen.fill(global_config.rest_condition_color)
+                screen.fill(text_config.rest_condition_color)
                 pygame.display.flip()
                 t_stim_end_actual = time()
 
                 marker_val, marker_ts = eeg_device.insert_marker(
-                    global_config.stim_end_marker
+                    text_config.stim_end_marker
                 )
                 if marker_val is not None:
                     data_logging_queue.put(
@@ -442,7 +442,7 @@ def experiment_text(config: dict):
 
                 if stimulus_block_counter == stimuli_per_block:
                     # Inter-block grey screen.
-                    screen.fill(global_config.rest_condition_color)
+                    screen.fill(text_config.rest_condition_color)
                     pygame.display.flip()
                     t_ibi_start = time()  # Start of inter-block interval.
 
@@ -501,14 +501,14 @@ def experiment_text(config: dict):
 
             if running:
                 # Display behavioural results.
-                screen.fill(global_config.rest_condition_color)
+                screen.fill(text_config.rest_condition_color)
 
                 # Behavioural results title.
                 title_font = pygame.font.Font(None, 72)
                 title_text = title_font.render(
                     "Experiment Complete",
                     True,
-                    global_config.font_color,
+                    text_config.font_color,
                 )
                 title_rect = title_text.get_rect(
                     center=(screen_width // 2, screen_height // 2 - 150)
@@ -520,17 +520,17 @@ def experiment_text(config: dict):
                 hits_text = results_font.render(
                     f"Hits: {n_hits}",
                     True,
-                    global_config.font_color,
+                    text_config.font_color,
                 )
                 misses_text = results_font.render(
                     f"Misses: {n_misses}",
                     True,
-                    global_config.font_color,
+                    text_config.font_color,
                 )
                 false_alarms_text = results_font.render(
                     f"False Alarms: {n_false_alarms}",
                     True,
-                    global_config.font_color,
+                    text_config.font_color,
                 )
 
                 # Position and display results
