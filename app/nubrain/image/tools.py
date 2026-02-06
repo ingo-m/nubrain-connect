@@ -5,10 +5,10 @@ import os
 import pygame
 from PIL import Image
 
-from nubrain.experiment.global_config import GlobalConfig
+from nubrain.experiment_image.image_config import ImageConfig
 
-global_config = GlobalConfig()
-max_img_storage_dimension = global_config.max_img_storage_dimension
+image_config = ImageConfig()
+max_img_storage_dimension = image_config.max_img_storage_dimension
 
 
 def get_all_images(*, image_directory: str):

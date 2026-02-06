@@ -53,15 +53,17 @@ class EEGDeviceInterface(ABC):
 
 
 class BrainFlowDevice(EEGDeviceInterface):
-    """BrainFlow-based device implementation (OpenBCI Cyton)."""
+    """BrainFlow-based device implementation (OpenBCI Cyton & synthetic)."""
 
     def __init__(
         self,
         *,
+        device_type: str,  # "cyton" or "synthetic"
         board_id: int,
         params: BrainFlowInputParams,
         eeg_channel_mapping: Dict[int, str],
     ):
+        self.device_type = device_type
         self.board_id = board_id
         self.params = params
         self.board = BoardShim(board_id, params)
@@ -72,6 +74,13 @@ class BrainFlowDevice(EEGDeviceInterface):
         eeg_channel_idxs = sorted(list(eeg_channel_mapping.keys()))
         eeg_channel_names = [eeg_channel_mapping[idx] for idx in eeg_channel_idxs]
         self.board_description["eeg_names"] = ",".join(eeg_channel_names)
+
+        self.eeg_channel_idxs = eeg_channel_idxs
+        self.n_eeg_channels = len(self.eeg_channel_idxs)
+
+        # We don't use LSL for the OpenBCI Cyton device, but we define the local clock
+        # for compatibility. We use this clock in the main experiment loop for timing.
+        self.lsl_local_clock = local_clock
 
     def prepare_session(self):
         self.board.prepare_session()
@@ -90,7 +99,6 @@ class BrainFlowDevice(EEGDeviceInterface):
 
     def insert_marker(self, marker: float):
         self.board.insert_marker(marker)
-        return None, None
 
     def release_session(self):
         self.board.release_session()
@@ -126,7 +134,6 @@ class DSI24Device(EEGDeviceInterface):
         self.lsl_stream_name = lsl_stream_name
         self.eeg_channel_mapping = eeg_channel_mapping
         self.inlet = None
-        self.marker_outlet = None
         self.stream_info = None
         self.channel_labels = []
         self.sampling_rate = 0
@@ -144,7 +151,7 @@ class DSI24Device(EEGDeviceInterface):
         self.StreamInlet = StreamInlet
         self.StreamOutlet = StreamOutlet
         self.StreamInfo = StreamInfo
-        self.local_clock = local_clock
+        self.lsl_local_clock = local_clock
         self.IRREGULAR_RATE = IRREGULAR_RATE
 
     def prepare_session(self):
@@ -194,18 +201,6 @@ class DSI24Device(EEGDeviceInterface):
         self.eeg_channel_mapping = {}
         for idx_channel, channel_label in enumerate(self.channel_labels):
             self.eeg_channel_mapping[idx_channel] = channel_label
-
-        # Create marker outlet for sending stimulus markers.
-        marker_info = self.StreamInfo(
-            name="ExperimentMarkers",
-            type="Markers",
-            channel_count=1,
-            nominal_srate=self.IRREGULAR_RATE,
-            channel_format="double64",  # Could be lower precision, but simpler for compatibility with timestamps in numpy array.
-            source_id="experiment_markers_" + str(hash(time.time())),
-        )
-        self.marker_outlet = self.StreamOutlet(marker_info)
-        print("Created marker outlet: ExperimentMarkers")
 
     def start_stream(self):
         """Start pulling data from the inlet in a background thread."""
@@ -265,29 +260,12 @@ class DSI24Device(EEGDeviceInterface):
 
             return data_array, timestamps_array
 
-    def insert_marker(self, marker: float):
-        """
-        Insert a marker into the LSL marker stream.
-        """
-        if self.marker_outlet:
-            # Get current LSL timestamp.
-            timestamp = self.local_clock()
-
-            # Send marker through LSL outlet.
-            self.marker_outlet.push_sample([marker], timestamp)
-
-            # The marker is also returned to be saved by the logging process.
-            # print(f"Inserted marker {marker} at LSL time {timestamp}")
-            return marker, timestamp
-        return None, None
-
     def release_session(self):
         """Clean up resources."""
         if self.inlet:
             self.inlet.close_stream()
             self.inlet = None
 
-        self.marker_outlet = None
         self.stream_info = None
 
         with self.buffer_lock:
@@ -337,6 +315,7 @@ def create_eeg_device(device_type: str, **kwargs) -> EEGDeviceInterface:
         params = BrainFlowInputParams()
         params.serial_port = kwargs["eeg_device_address"]
         return BrainFlowDevice(
+            device_type=device_type,
             board_id=BoardIds.SYNTHETIC_BOARD.value,
             params=params,
             eeg_channel_mapping=kwargs["eeg_channel_mapping"],
@@ -345,6 +324,7 @@ def create_eeg_device(device_type: str, **kwargs) -> EEGDeviceInterface:
         params = BrainFlowInputParams()
         params.serial_port = kwargs["eeg_device_address"]
         return BrainFlowDevice(
+            device_type=device_type,
             board_id=BoardIds.CYTON_BOARD.value,
             params=params,
             eeg_channel_mapping=kwargs["eeg_channel_mapping"],

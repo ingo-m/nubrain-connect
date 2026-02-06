@@ -8,9 +8,9 @@ import numpy as np
 import pygame
 
 from nubrain.device.device_interface import create_eeg_device
-from nubrain.experiment.data import eeg_data_logging
-from nubrain.experiment.global_config import GlobalConfig
-from nubrain.experiment.randomize_conditions import (
+from nubrain.experiment_image.data import eeg_data_logging
+from nubrain.experiment_image.image_config import ImageConfig
+from nubrain.experiment_image.randomize_conditions import (
     create_balanced_list,
     sample_next_image,
     shuffle_with_repetitions,
@@ -21,7 +21,7 @@ from nubrain.misc.datetime import get_formatted_current_datetime
 mp.set_start_method("spawn", force=True)  # Necessary on if running on windows?
 
 
-def experiment(config: dict):
+def experiment_image(config: dict):
     # ----------------------------------------------------------------------------------
     # *** Get config
 
@@ -52,7 +52,7 @@ def experiment(config: dict):
 
     eeg_device_address = config.get("eeg_device_address", None)
 
-    global_config = GlobalConfig()
+    image_config = ImageConfig()
 
     # ----------------------------------------------------------------------------------
     # *** Test if output path exists
@@ -228,10 +228,10 @@ def experiment(config: dict):
         try:
             # Initial grey screen.
             pygame.time.wait(100)
-            screen.fill(global_config.rest_condition_color)
+            screen.fill(image_config.rest_condition_color)
             pygame.display.flip()
             pygame.time.wait(100)
-            screen.fill(global_config.rest_condition_color)
+            screen.fill(image_config.rest_condition_color)
             pygame.display.flip()
 
             # Clear board buffer.
@@ -269,14 +269,14 @@ def experiment(config: dict):
                     img_rect = current_image.get_rect(
                         center=(screen_width // 2, screen_height // 2)
                     )
-                    screen.fill(global_config.rest_condition_color)
+                    screen.fill(image_config.rest_condition_color)
                     screen.blit(current_image, img_rect)
                     pygame.display.flip()
                     t_stim_start = time()  # Start of stimulus presentation.
 
                     # Insert stimulus start marker and get its timestamp.
                     marker_val, marker_ts = eeg_device.insert_marker(
-                        global_config.stim_start_marker
+                        image_config.stim_start_marker
                     )
                     if marker_val is not None:
                         data_logging_queue.put(
@@ -338,12 +338,12 @@ def experiment(config: dict):
                         break
 
                     # End of stimulus presentation. Display ISI grey screen.
-                    screen.fill(global_config.rest_condition_color)
+                    screen.fill(image_config.rest_condition_color)
                     pygame.display.flip()
                     t_stim_end_actual = time()
 
                     marker_val, marker_ts = eeg_device.insert_marker(
-                        global_config.stim_end_marker
+                        image_config.stim_end_marker
                     )
                     if marker_val is not None:
                         data_logging_queue.put(
@@ -429,7 +429,7 @@ def experiment(config: dict):
                     )
 
                 # Inter-block grey screen.
-                screen.fill(global_config.rest_condition_color)
+                screen.fill(image_config.rest_condition_color)
                 pygame.display.flip()
                 # We already waited for the ISI duration, therefore subtract it from the
                 # inter block duration. Avoid negative value in case ISI duration is
@@ -453,7 +453,7 @@ def experiment(config: dict):
 
             if running:
                 # Display behavioural results.
-                screen.fill(global_config.rest_condition_color)
+                screen.fill(image_config.rest_condition_color)
 
                 # Behavioural results title.
                 title_font = pygame.font.Font(None, 72)

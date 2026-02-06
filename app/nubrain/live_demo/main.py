@@ -10,8 +10,8 @@ from time import time
 import numpy as np
 import pygame
 
-from nubrain.experiment.global_config import GlobalConfig
-from nubrain.experiment_eeg_to_image_v1.tone import generate_tone
+from nubrain.audio.tone import generate_tone
+from nubrain.experiment_image.image_config import ImageConfig
 from nubrain.image.tools import (
     scale_image_surface,
 )
@@ -31,7 +31,7 @@ def run_live_demo(cache: str):
 
     image_generation_step_delay = 0.2
 
-    global_config = GlobalConfig()
+    image_config = ImageConfig()
 
     # ----------------------------------------------------------------------------------
     # *** Load cache
@@ -106,10 +106,10 @@ def run_live_demo(cache: str):
         try:
             # Initial grey screen.
             pygame.time.wait(100)
-            screen.fill(global_config.rest_condition_color)
+            screen.fill(image_config.rest_condition_color)
             pygame.display.flip()
             pygame.time.wait(100)
-            screen.fill(global_config.rest_condition_color)
+            screen.fill(image_config.rest_condition_color)
             pygame.display.flip()
 
             # Pause for specified number of milliseconds.
@@ -149,7 +149,7 @@ def run_live_demo(cache: str):
                 img_rect = current_image.get_rect(
                     center=(screen_width // 2, screen_height // 2)
                 )
-                screen.fill(global_config.rest_condition_color)
+                screen.fill(image_config.rest_condition_color)
                 screen.blit(current_image, img_rect)
 
                 # Wait until the end of the pre-stimulus period.
@@ -197,7 +197,7 @@ def run_live_demo(cache: str):
                 # *** Post-stimulus period
 
                 # End of stimulus presentation. Display grey screen.
-                screen.fill(global_config.rest_condition_color)
+                screen.fill(image_config.rest_condition_color)
                 pygame.display.flip()
                 t_stim_end_actual = time()
 
@@ -250,7 +250,7 @@ def run_live_demo(cache: str):
                         )
                     )
 
-                    screen.fill(global_config.rest_condition_color)
+                    screen.fill(image_config.rest_condition_color)
                     # Text titles (original & reconstructed image).
                     screen.blit(text_original, text_original_rect)
                     screen.blit(text_reconstructed, text_reconstructed_rect)
@@ -283,7 +283,7 @@ def run_live_demo(cache: str):
                 # Show generated image for this amount of time.
                 # t_generated_img_end = time() + generated_image_duration
 
-                screen.fill(global_config.rest_condition_color)
+                screen.fill(image_config.rest_condition_color)
                 # Text titles (original & reconstructed image).
                 screen.blit(text_original, text_original_rect)
                 screen.blit(text_reconstructed, text_reconstructed_rect)
@@ -328,7 +328,7 @@ def run_live_demo(cache: str):
                 # *** Inter-trial grey screen
 
                 # End of generated image presentation. Display grey screen.
-                screen.fill(global_config.rest_condition_color)
+                screen.fill(image_config.rest_condition_color)
                 pygame.display.flip()
                 remaining_wait = (
                     inter_block_grey_duration

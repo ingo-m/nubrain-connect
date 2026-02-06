@@ -22,23 +22,26 @@ class EegExperimentConfig:
     session_id: str
 
     output_directory: str
-    image_directory: str
+    path_text: str
 
     utility_frequency: float
 
     # Timing parameters
     initial_rest_duration: float
-    image_duration: float
+    stimulus_duration: float
     isi_duration: float
     isi_jitter: float
-    inter_block_grey_duration: float
+    isi_extension_target: float
+    inter_block_rest_duration: float
+    response_window_duration: float
 
     # Experiment structure
-    n_blocks: int
-    images_per_block: int
+    word_idx_start: int
+    n_words_to_show: int
     n_target_events: int
-
-    response_window_duration: float
+    min_distance_targets: int
+    stimuli_per_block: int
+    stimulus_font_size: int
 
     device_type: str
     lsl_stream_name: Optional[str] = "DSI-24"
@@ -129,19 +132,18 @@ class EegExperimentConfig:
 
         # Ensure that the response window (in which the participant to an attention task
         # target event counts as a hit) end before the next trial.
-        if (self.image_duration + self.isi_duration) < self.response_window_duration:
+        if (
+            self.stimulus_duration + self.isi_duration + self.isi_extension_target
+        ) < self.response_window_duration:
             raise ValueError("Response window is longer than trial duration")
 
-        # Introduce an (arbitrary) upper limit to the number of target events:
-        if (self.n_blocks * self.images_per_block * 0.5) <= self.n_target_events:
-            ValueError("Too many target events")
-        elif self.n_target_events < 0:
+        if self.n_target_events < 0:
             ValueError("Negativ number of target events")
 
         print("Configuration successfully loaded and validated.")
 
 
-def load_config_yaml(*, yaml_file_path: str):
+def load_config_text_yaml(*, yaml_file_path: str):
     """
     Load yaml file with settings for nubrain EEG experiment.
     """

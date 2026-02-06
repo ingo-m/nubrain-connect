@@ -19,15 +19,15 @@ import numpy as np
 import pygame
 import websockets
 
+from nubrain.audio.tone import generate_tone
 from nubrain.device.device_interface import create_eeg_device
-from nubrain.experiment.data import eeg_data_logging
-from nubrain.experiment.global_config import GlobalConfig
-from nubrain.experiment.randomize_conditions import (
+from nubrain.experiment_image.data import eeg_data_logging
+from nubrain.experiment_image.image_config import ImageConfig
+from nubrain.experiment_image.randomize_conditions import (
     create_balanced_list,
     sample_next_image,
     shuffle_with_repetitions,
 )
-from nubrain.experiment_eeg_to_image_v1.tone import generate_tone
 from nubrain.image.tools import (
     get_all_images,
     load_and_scale_image,
@@ -104,7 +104,7 @@ def experiment_eeg_to_image_v1(config: dict):
 
     eeg_device_address = config.get("eeg_device_address", None)
 
-    global_config = GlobalConfig()
+    image_config = ImageConfig()
 
     # ----------------------------------------------------------------------------------
     # *** Test if output path exists
@@ -316,10 +316,10 @@ def experiment_eeg_to_image_v1(config: dict):
         try:
             # Initial grey screen.
             pygame.time.wait(100)
-            screen.fill(global_config.rest_condition_color)
+            screen.fill(image_config.rest_condition_color)
             pygame.display.flip()
             pygame.time.wait(100)
-            screen.fill(global_config.rest_condition_color)
+            screen.fill(image_config.rest_condition_color)
             pygame.display.flip()
 
             # Pause for specified number of milliseconds.
@@ -381,7 +381,7 @@ def experiment_eeg_to_image_v1(config: dict):
                     img_rect = current_image.get_rect(
                         center=(screen_width // 2, screen_height // 2)
                     )
-                    screen.fill(global_config.rest_condition_color)
+                    screen.fill(image_config.rest_condition_color)
                     screen.blit(current_image, img_rect)
 
                     # Wait until the end of the pre-stimulus period.
@@ -406,7 +406,7 @@ def experiment_eeg_to_image_v1(config: dict):
 
                     # Insert stimulus start marker and get its timestamp.
                     marker_val_stim_start, marker_ts_stim_start = (
-                        eeg_device.insert_marker(global_config.stim_start_marker)
+                        eeg_device.insert_marker(image_config.stim_start_marker)
                     )
                     if marker_val_stim_start is not None:
                         data_logging_queue.put(
@@ -450,12 +450,12 @@ def experiment_eeg_to_image_v1(config: dict):
                     # *** Post-stimulus period
 
                     # End of stimulus presentation. Display grey screen.
-                    screen.fill(global_config.rest_condition_color)
+                    screen.fill(image_config.rest_condition_color)
                     pygame.display.flip()
                     t_stim_end_actual = time()
 
                     marker_val_stim_end, marker_ts_stim_end = eeg_device.insert_marker(
-                        global_config.stim_end_marker
+                        image_config.stim_end_marker
                     )
                     if marker_val_stim_end is not None:
                         data_logging_queue.put(
@@ -604,7 +604,7 @@ def experiment_eeg_to_image_v1(config: dict):
                             )
                         )
 
-                        screen.fill(global_config.rest_condition_color)
+                        screen.fill(image_config.rest_condition_color)
                         # Text titles (original & reconstructed image).
                         screen.blit(text_original, text_original_rect)
                         screen.blit(text_reconstructed, text_reconstructed_rect)
@@ -651,7 +651,7 @@ def experiment_eeg_to_image_v1(config: dict):
                 # Show generated image for this amount of time.
                 t_generated_img_end = time() + generated_image_duration
 
-                screen.fill(global_config.rest_condition_color)
+                screen.fill(image_config.rest_condition_color)
                 # Text titles (original & reconstructed image).
                 screen.blit(text_original, text_original_rect)
                 screen.blit(text_reconstructed, text_reconstructed_rect)
@@ -707,7 +707,7 @@ def experiment_eeg_to_image_v1(config: dict):
                 # *** Grey screen (after generated image)
 
                 # End of generated image presentation. Display grey screen.
-                screen.fill(global_config.rest_condition_color)
+                screen.fill(image_config.rest_condition_color)
                 pygame.display.flip()
 
                 # Insert stimulus start marker and get its timestamp.
@@ -747,7 +747,7 @@ def experiment_eeg_to_image_v1(config: dict):
                 previous_image_file_path = next_image_file_path
 
                 # Inter-block grey screen.
-                screen.fill(global_config.rest_condition_color)
+                screen.fill(image_config.rest_condition_color)
                 pygame.display.flip()
                 remaining_wait = (
                     inter_block_grey_duration
