@@ -1,7 +1,7 @@
 import multiprocessing as mp
 import os
 import traceback
-from time import sleep, time
+from time import sleep
 
 import numpy as np
 import pygame
@@ -302,18 +302,22 @@ def experiment_text(config: dict):
                 )
                 screen.blit(stimulus_text, stimulus_rect)
                 pygame.display.flip()
-                t_stim_start = time()  # Start of stimulus presentation.
+                # Start of stimulus presentation.
+                t_stim_start = eeg_device.lsl_local_clock()
 
-                # Insert stimulus start marker and get its timestamp.
-                marker_val, marker_ts = eeg_device.insert_marker(
-                    text_config.stim_start_marker
-                )
-                if marker_val is not None:
+                # When using an OpenBCI device, we insert a stimulus marker into the
+                # time series data on the EEG board. These markers can be used during
+                # analysis to identify stimulus events. For the DSI-24 device, we
+                # instead use LSL timestamps stored in the hdf5 file for identifying
+                # stimulus events.
+                if device_type in ["cyton", "synthetic"]:
+                    eeg_device.insert_marker(text_config.stim_start_marker)
+                else:
                     data_logging_queue.put(
                         {
                             "type": "marker",
-                            "marker_value": marker_val,
-                            "timestamp": marker_ts,
+                            "marker_value": text_config.stim_start_marker,
+                            "timestamp": t_stim_start,
                         }
                     )
 
@@ -323,12 +327,12 @@ def experiment_text(config: dict):
 
                 # Wait for stimulus duration, but check for responses continuously.
                 t_stim_end_expected = t_stim_start + stimulus_duration
-                while time() < t_stim_end_expected:
+                while eeg_device.lsl_local_clock() < t_stim_end_expected:
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                             running = False
                         if event.type == pygame.KEYDOWN:
-                            keydown_time = time()
+                            keydown_time = eeg_device.lsl_local_clock()
                             if event.key == pygame.K_ESCAPE:
                                 running = False
                             # Check for space bar press within the response window.
@@ -351,17 +355,21 @@ def experiment_text(config: dict):
                 # End of stimulus presentation. Display ISI grey screen.
                 screen.fill(text_config.rest_condition_color)
                 pygame.display.flip()
-                t_stim_end_actual = time()
+                t_stim_end_actual = eeg_device.lsl_local_clock()
 
-                marker_val, marker_ts = eeg_device.insert_marker(
-                    text_config.stim_end_marker
-                )
-                if marker_val is not None:
+                # When using an OpenBCI device, we insert a stimulus marker into the
+                # time series data on the EEG board. These markers can be used during
+                # analysis to identify stimulus events. For the DSI-24 device, we
+                # instead use LSL timestamps stored in the hdf5 file for identifying
+                # stimulus events.
+                if device_type in ["cyton", "synthetic"]:
+                    eeg_device.insert_marker(text_config.stim_end_marker)
+                else:
                     data_logging_queue.put(
                         {
                             "type": "marker",
-                            "marker_value": marker_val,
-                            "timestamp": marker_ts,
+                            "marker_value": text_config.stim_end_marker,
+                            "timestamp": t_stim_end_actual,
                         }
                     )
 
@@ -390,12 +398,12 @@ def experiment_text(config: dict):
                     t_isi_end += isi_extension_target
 
                 # Continue checking for late responses or quit events.
-                while time() < t_isi_end:
+                while eeg_device.lsl_local_clock() < t_isi_end:
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                             running = False
                         if event.type == pygame.KEYDOWN:
-                            keydown_time = time()
+                            keydown_time = eeg_device.lsl_local_clock()
                             if event.key == pygame.K_ESCAPE:
                                 running = False
                             # Still check for spacebar presses that are within the
@@ -444,7 +452,8 @@ def experiment_text(config: dict):
                     # Inter-block grey screen.
                     screen.fill(text_config.rest_condition_color)
                     pygame.display.flip()
-                    t_ibi_start = time()  # Start of inter-block interval.
+                    # Start of inter-block interval.
+                    t_ibi_start = eeg_device.lsl_local_clock()
 
                     if use_ibi_audio_cue:
                         # Audio cue to signal the beginning of the inter-block interval.
@@ -459,10 +468,12 @@ def experiment_text(config: dict):
                         t_ibi_end_audio_cue = t_ibi_end - pure_tone_end_delay
                         ibi_end_cue_played_yet = False
 
-                    while time() < t_ibi_end:  # Continue inter-block interval?
+                    while (
+                        eeg_device.lsl_local_clock() < t_ibi_end
+                    ):  # Continue inter-block interval?
                         if (
                             use_ibi_audio_cue
-                            and (t_ibi_end_audio_cue <= time())
+                            and (t_ibi_end_audio_cue <= eeg_device.lsl_local_clock())
                             and not ibi_end_cue_played_yet
                         ):  # Time to play end of inter-block interval cue?
                             # Play the cue to signal the end of the inter-block

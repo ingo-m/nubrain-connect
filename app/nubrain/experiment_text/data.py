@@ -13,6 +13,11 @@ def eeg_data_logging(subprocess_params: dict):
     """
     Log experimental data. Save to local hdf file. To be run in separate process (using
     multiprocessing).
+
+    Please note that the stimulus onset and offset timestamps (`stimulus_start_time` and
+    `stimulus_end_time`) use the LSL local clock, which is in seconds, but not aligned
+    with UNIX epoch. We use the LSL clock for consistency with EEG timestamps from the
+    DSI-24 device. Only the `experiment_start_time` is in UNIX epoch.
     """
     # ----------------------------------------------------------------------------------
     # *** Get parameters
@@ -68,7 +73,7 @@ def eeg_data_logging(subprocess_params: dict):
         "stim_start_marker": text_config.stim_start_marker,
         "stim_end_marker": text_config.stim_end_marker,
         "hdf5_dtype": text_config.hdf5_dtype,
-        "experiment_start_time": time(),
+        "experiment_start_time": time(),  # Epoch timestamp
         # EEG parameters
         "eeg_board_description": eeg_board_description,
         "eeg_sampling_rate": eeg_sampling_rate,
@@ -145,7 +150,7 @@ def eeg_data_logging(subprocess_params: dict):
             "eeg_timestamps",
             shape=(0,),
             maxshape=(None,),
-            dtype="float64",  # LSL timestamps
+            dtype="float64",
             chunks=True,
         )
 
