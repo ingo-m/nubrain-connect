@@ -13,6 +13,7 @@ def exclude_invalid_chars(*, text: str):
     text = text.replace("\n", " ")
     text = text.replace("—", " ")
     text = text.replace("_", " ")
+    text = text.replace(b"\xe3\x80\x80".decode('utf8'), " ")
 
     punctuation_chars = PunctuationChars().allowed
 
