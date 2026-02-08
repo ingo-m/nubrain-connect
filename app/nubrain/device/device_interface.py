@@ -39,9 +39,10 @@ class EEGDeviceInterface(ABC):
     def get_board_data(self) -> tuple[np.ndarray, np.ndarray]:
         pass
 
-    @abstractmethod
-    def insert_marker(self, marker: float):
-        pass
+    # Only the OpenBCI Cyton device uses a marker channel, not the WS-DSI-24.
+    # @abstractmethod
+    # def insert_marker(self, marker: float):
+    #     pass
 
     @abstractmethod
     def release_session(self):
