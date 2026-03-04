@@ -181,6 +181,9 @@ def eeg_data_logging(subprocess_params: dict):
                 ("font_size", np.int64),
                 ("font_is_bold", np.bool),
                 ("font_is_italic", np.bool),
+                ("font_color_r", np.uint8),
+                ("font_color_g", np.uint8),
+                ("font_color_b", np.uint8),
                 ("font_spacing", np.float64),
                 ("is_target_event", np.bool),
                 ("response_time_s", np.float64),
@@ -279,6 +282,7 @@ def eeg_data_logging(subprocess_params: dict):
                     font_size = new_stimulus_data["font_size"]
                     font_is_bold = new_stimulus_data["font_is_bold"]
                     font_is_italic = new_stimulus_data["font_is_italic"]
+                    font_color = new_stimulus_data["font_color"]
                     font_spacing = new_stimulus_data["font_spacing"]
 
                     is_target_event = new_stimulus_data["is_target_event"]
@@ -295,6 +299,10 @@ def eeg_data_logging(subprocess_params: dict):
                     data_to_write[0]["font_size"] = font_size
                     data_to_write[0]["font_is_bold"] = font_is_bold
                     data_to_write[0]["font_is_italic"] = font_is_italic
+                    data_to_write[0]["font_color_r"] = font_color[0]
+                    data_to_write[0]["font_color_g"] = font_color[1]
+                    data_to_write[0]["font_color_b"] = font_color[2]
+
                     data_to_write[0]["font_spacing"] = font_spacing
 
                     data_to_write[0]["is_target_event"] = is_target_event

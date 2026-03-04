@@ -306,6 +306,7 @@ def experiment_text(config: dict):
                 font_size = font_data["font_size"]
                 font_is_bold = font_data["font_is_bold"]
                 font_is_italic = font_data["font_is_italic"]
+                font_color = random.choice(text_config.font_colors)
                 font_spacing = np.random.uniform(
                     low=stimulus_font_min_spacing,
                     high=stimulus_font_max_spacing,
@@ -314,7 +315,7 @@ def experiment_text(config: dict):
                 stimulus_text = render_spaced_text(
                     text=word,
                     font=font_data["font"],
-                    color=text_config.font_color,
+                    color=font_color,
                     spacing=font_spacing,
                 )
 
@@ -455,6 +456,7 @@ def experiment_text(config: dict):
                     "font_is_bold": font_is_bold,
                     "font_is_italic": font_is_italic,
                     "font_spacing": font_spacing,
+                    "font_color": font_color,
                     "is_target_event": is_target_event,
                     "response_time_s": response_time,
                 }
@@ -545,7 +547,7 @@ def experiment_text(config: dict):
                 title_text = title_font.render(
                     "Experiment Complete",
                     True,
-                    text_config.font_color,
+                    text_config.font_colors[0],
                 )
                 title_rect = title_text.get_rect(
                     center=(screen_width // 2, screen_height // 2 - 150)
@@ -557,17 +559,17 @@ def experiment_text(config: dict):
                 hits_text = results_font.render(
                     f"Hits: {n_hits}",
                     True,
-                    text_config.font_color,
+                    text_config.font_colors[0],
                 )
                 misses_text = results_font.render(
                     f"Misses: {n_misses}",
                     True,
-                    text_config.font_color,
+                    text_config.font_colors[0],
                 )
                 false_alarms_text = results_font.render(
                     f"False Alarms: {n_false_alarms}",
                     True,
-                    text_config.font_color,
+                    text_config.font_colors[0],
                 )
 
                 # Position and display results
