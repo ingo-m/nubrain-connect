@@ -6,62 +6,55 @@ import pygame
 pygame.init()
 
 # 2. Configuration & Setup
-WIDTH, HEIGHT = 2000, 800
+WIDTH, HEIGHT = 1600, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Word Presentation")
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
-DURATION_MS = 1000
+DURATION_MS = 2000
 
 # text = "The rain had finally stopped and dawn light was seeping through the wet cloth over his eyes when Catelyn Stark gave the command to dismount."
 # words = text.split(" ")
 
 font_names = [
-    "comicsansms",
-    "tuffy",
-    "dejavuserif",
-    "urwbookman",
-    "ubuntu",
-    "ubuntusans",
-    "notoserifcjksc",
-    "nimbusmonops",
-    "notosansmono",
-    "notoserifcjktc",
-    "timesnewroman",
-    "p052",
-    "couriernew",
-    "liberationsansnarrow",
-    "verdana",
+    "andalemono",
     "arial",
-    "dejavusans",
-    "nimbussans",
     "arialblack",
-    "nimbussansnarrow",
     "c059",
-    "liberationsans",
+    "comicsansms",
+    "couriernew",
+    "dejavuserif",
     "georgia",
+    "impact",
     "liberationmono",
-    "notosanscjkhk",
-    "notosanscjkkr",
-    "notoserifdisplay",
+    "liberationsans",
+    "liberationsansnarrow",
     "liberationserif",
-    "notosanscjksc",
-    "notosanscjktc",
+    "nimbusmonops",
+    "nimbusroman",
+    "nimbussans",
+    "nimbussansnarrow",
+    "notomono",
+    "notosans",
+    "notosanscjkhk",
+    "notosansdisplay",
+    "notosansmono",
+    "notosansmonocjktc",
+    "notoserif",
+    "notoserifcjksc",
+    "notoserifdisplay",
+    "p052",
+    "timesnewroman",
     "trebuchetms",
+    "tuffy",
+    "ubuntu",
     "ubuntumono",
     "ubuntusansmono",
-    "notosans",
-    "z003",
+    "urwbookman",
     "urwgothic",
-    "notosansdisplay",
-    "nimbusroman",
-    "notoserif",
-    "notosansmonocjktc",
-    "notosansmonocjksc",
-    "impact",
-    "notomono",
-    "andalemono",
+    "verdana",
+    "z003",
 ]
 
 # 3. Setup the list of diverse fonts
@@ -82,7 +75,7 @@ words = font_names
 
 # Create actual Pygame font objects from the configurations
 fonts = []
-font_size = 72
+font_size = 48
 
 is_bold = False
 is_italic = False
