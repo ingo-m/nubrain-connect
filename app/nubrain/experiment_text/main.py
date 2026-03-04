@@ -1,5 +1,6 @@
 import multiprocessing as mp
 import os
+import random
 import traceback
 from time import sleep
 
@@ -12,6 +13,7 @@ from nubrain.experiment_text.data import eeg_data_logging
 from nubrain.experiment_text.random_target_events import sample_target_events
 from nubrain.experiment_text.text_config import TextConfig
 from nubrain.misc.datetime import get_formatted_current_datetime
+from nubrain.text.rendering import construct_fonts, render_spaced_text
 from nubrain.text.tools import load_and_preprocess_text
 
 mp.set_start_method("spawn", force=True)  # Necessary on if running on windows?
@@ -47,7 +49,9 @@ def experiment_text(config: dict):
     n_target_events = config["n_target_events"]
     min_distance_targets = config["min_distance_targets"]
     stimuli_per_block = config["stimuli_per_block"]
-    stimulus_font_size = config["stimulus_font_size"]
+    stimulus_font_sizes = config["stimulus_font_sizes"]
+    stimulus_font_min_spacing = config["stimulus_font_min_spacing"]
+    stimulus_font_max_spacing = config["stimulus_font_max_spacing"]
 
     eeg_device_address = config.get("eeg_device_address", None)
 
@@ -170,7 +174,9 @@ def experiment_text(config: dict):
         "n_target_events": n_target_events,
         "min_distance_targets": min_distance_targets,
         "stimuli_per_block": stimuli_per_block,
-        "stimulus_font_size": stimulus_font_size,
+        "stimulus_font_sizes": stimulus_font_sizes,
+        "stimulus_font_min_spacing": stimulus_font_min_spacing,
+        "stimulus_font_max_spacing": stimulus_font_max_spacing,
         # Text and targets
         "text": text,  # List of str
         "is_target": is_target,  # List of bool
@@ -265,7 +271,7 @@ def experiment_text(config: dict):
             screen.fill(text_config.rest_condition_color)
             pygame.display.flip()
 
-            stimulus_font = pygame.font.SysFont("timesnewroman", stimulus_font_size)
+            stimulus_fonts = construct_fonts(font_sizes=stimulus_font_sizes)
 
             # Clear board buffer.
             _, _ = eeg_device.get_board_data()
@@ -292,11 +298,26 @@ def experiment_text(config: dict):
                 if not running:  # Check for quit event
                     break
 
-                stimulus_text = stimulus_font.render(
-                    word,
-                    True,
-                    text_config.font_color,
+                # Randomly sample a font (we render the stimulus using different fonts
+                # to achieve different stimulus appearance in terms of low-level visual
+                # features.
+                font_data = random.choice(stimulus_fonts)
+                font_name = font_data["font_name"]
+                font_size = font_data["font_size"]
+                font_is_bold = font_data["font_is_bold"]
+                font_is_italic = font_data["font_is_italic"]
+                font_spacing = np.random.uniform(
+                    low=stimulus_font_min_spacing,
+                    high=stimulus_font_max_spacing,
                 )
+
+                stimulus_text = render_spaced_text(
+                    text=word,
+                    font=font_data["font"],
+                    color=text_config.font_color,
+                    spacing=font_spacing,
+                )
+
                 stimulus_rect = stimulus_text.get_rect(
                     center=(screen_width // 2, screen_height // 2)
                 )
@@ -429,6 +450,11 @@ def experiment_text(config: dict):
                     "stimulus_end_time": t_stim_end_actual,
                     "stimulus_duration_s": t_stim_end_actual - t_stim_start,
                     "word": word,
+                    "font_name": font_name,
+                    "font_size": font_size,
+                    "font_is_bold": font_is_bold,
+                    "font_is_italic": font_is_italic,
+                    "font_spacing": font_spacing,
                     "is_target_event": is_target_event,
                     "response_time_s": response_time,
                 }

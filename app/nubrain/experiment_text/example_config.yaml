@@ -49,7 +49,9 @@ n_words_to_show: 550
 n_target_events: 5
 min_distance_targets: 5
 stimuli_per_block: 100
-stimulus_font_size: 64
+stimulus_font_sizes: [56, 64, 72]
+stimulus_font_min_spacing: 0.0
+stimulus_font_max_spacing: 32.0
 
 # Not needed for DSI-24, leave as null or omit
 # eeg_device_address:

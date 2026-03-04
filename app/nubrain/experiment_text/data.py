@@ -50,7 +50,9 @@ def eeg_data_logging(subprocess_params: dict):
     n_target_events = subprocess_params["n_target_events"]
     min_distance_targets = subprocess_params["min_distance_targets"]
     stimuli_per_block = subprocess_params["stimuli_per_block"]
-    stimulus_font_size = subprocess_params["stimulus_font_size"]
+    stimulus_font_sizes = subprocess_params["stimulus_font_sizes"]
+    stimulus_font_min_spacing = subprocess_params["stimulus_font_min_spacing"]
+    stimulus_font_max_spacing = subprocess_params["stimulus_font_max_spacing"]
 
     # Text and targets
     text = subprocess_params["text"]  # List of str
@@ -92,7 +94,9 @@ def eeg_data_logging(subprocess_params: dict):
         "n_target_events": n_target_events,
         "min_distance_targets": min_distance_targets,
         "stimuli_per_block": stimuli_per_block,
-        "stimulus_font_size": stimulus_font_size,
+        "stimulus_font_sizes": stimulus_font_sizes,
+        "stimulus_font_min_spacing": stimulus_font_min_spacing,
+        "stimulus_font_max_spacing": stimulus_font_max_spacing,
         # Text and targets
         "text": text,  # List of str
         "is_target": is_target,  # List of bool
@@ -173,6 +177,11 @@ def eeg_data_logging(subprocess_params: dict):
                 ("stimulus_end_time", np.float64),
                 ("stimulus_duration_s", np.float64),
                 ("word", h5py.string_dtype(encoding="utf-8")),
+                ("font_name", h5py.string_dtype(encoding="utf-8")),
+                ("font_size", np.int64),
+                ("font_is_bold", np.bool),
+                ("font_is_italic", np.bool),
+                ("font_spacing", np.float64),
                 ("is_target_event", np.bool),
                 ("response_time_s", np.float64),
             ]
@@ -264,15 +273,30 @@ def eeg_data_logging(subprocess_params: dict):
                     stimulus_start_time = new_stimulus_data["stimulus_start_time"]
                     stimulus_end_time = new_stimulus_data["stimulus_end_time"]
                     stimulus_duration_s = new_stimulus_data["stimulus_duration_s"]
+
                     word = new_stimulus_data["word"]
+                    font_name = new_stimulus_data["font_name"]
+                    font_size = new_stimulus_data["font_size"]
+                    font_is_bold = new_stimulus_data["font_is_bold"]
+                    font_is_italic = new_stimulus_data["font_is_italic"]
+                    font_spacing = new_stimulus_data["font_spacing"]
+
                     is_target_event = new_stimulus_data["is_target_event"]
                     response_time_s = new_stimulus_data["response_time_s"]
 
                     data_to_write = np.empty((1,), dtype=stimulus_dtype)
+
                     data_to_write[0]["stimulus_start_time"] = stimulus_start_time
                     data_to_write[0]["stimulus_end_time"] = stimulus_end_time
                     data_to_write[0]["stimulus_duration_s"] = stimulus_duration_s
+
                     data_to_write[0]["word"] = word
+                    data_to_write[0]["font_name"] = font_name
+                    data_to_write[0]["font_size"] = font_size
+                    data_to_write[0]["font_is_bold"] = font_is_bold
+                    data_to_write[0]["font_is_italic"] = font_is_italic
+                    data_to_write[0]["font_spacing"] = font_spacing
+
                     data_to_write[0]["is_target_event"] = is_target_event
                     data_to_write[0]["response_time_s"] = response_time_s
 
@@ -305,6 +329,3 @@ def eeg_data_logging(subprocess_params: dict):
 
                     # Write the structured array to the dataset.
                     hdf5_behavioural_data[0] = data_to_write
-
-
-# End of data preprocessing process.
