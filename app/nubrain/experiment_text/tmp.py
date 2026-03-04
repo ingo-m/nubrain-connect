@@ -2,11 +2,52 @@ import sys
 
 import pygame
 
+
+def render_spaced_text(
+    *,
+    text: str,
+    font: pygame.font.SysFont,
+    color: tuple,
+    spacing: float,
+):
+    """
+    Renders text with custom letter spacing.
+
+    Checks the width of every specific character as it is rendered. This is necessary
+    because the width of characters differs between characters and fonts. Returns a
+    pygame surface containing the spaced text.
+    """
+    if not text:
+        return pygame.Surface((0, 0))
+
+    # Render each character to its own surface.
+    char_surfaces = [font.render(char, True, color) for char in text]
+
+    # Calculate the total width and maximum height needed. Total width = sum of all char
+    # widths + spacing between each char.
+    total_width = sum([surf.get_width() for surf in char_surfaces]) + (
+        spacing * (len(text) - 1)
+    )
+    max_height = max([surf.get_height() for surf in char_surfaces])
+
+    # Create a master transparent surface to hold the word. SRCALPHA ensures the
+    # background of this new surface remains transparent.
+    word_surface = pygame.Surface((total_width, max_height), pygame.SRCALPHA)
+
+    # Blit each character onto the master surface with the appropriate spacing offset.
+    current_x = 0
+    for surf in char_surfaces:
+        word_surface.blit(surf, (current_x, 0))
+        current_x += surf.get_width() + spacing
+
+    return word_surface
+
+
 # 1. Initialize Pygame
 pygame.init()
 
 # 2. Configuration & Setup
-WIDTH, HEIGHT = 1600, 600
+WIDTH, HEIGHT = 3200, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Word Presentation")
 
@@ -124,7 +165,13 @@ while running:
         )
 
         # Render the text (White font)
-        text_surface = selected_font.render(current_word, True, WHITE)
+        # text_surface = selected_font.render(current_word, True, WHITE)
+        text_surface = render_spaced_text(
+            text=current_word,
+            font=selected_font,
+            color=WHITE,
+            spacing=32.0,
+        )
 
         # Center the text on the screen
         text_rect = text_surface.get_rect(center=(WIDTH // 2, HEIGHT // 2))
