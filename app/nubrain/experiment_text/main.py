@@ -32,6 +32,10 @@ def experiment_text(config: dict):
     output_directory = config["output_directory"]
     path_text = config["path_text"]
 
+    storage_bucket_name = config["storage_bucket_name"]
+    storage_blob_name = config["storage_blob_name"]
+    storage_bucket_credentials = config["storage_bucket_credentials"]
+
     eeg_channel_mapping = config.get("eeg_channel_mapping", None)
 
     utility_frequency = config["utility_frequency"]
@@ -180,9 +184,13 @@ def experiment_text(config: dict):
         # Text and targets
         "text": text,  # List of str
         "is_target": is_target,  # List of bool
+        # Storage
+        "path_out_data": path_out_data,
+        "storage_bucket_name": storage_bucket_name,
+        "storage_blob_name": storage_blob_name,
+        "storage_bucket_credentials": storage_bucket_credentials,
         # Misc
         "utility_frequency": utility_frequency,
-        "path_out_data": path_out_data,
         "data_logging_queue": data_logging_queue,
     }
 

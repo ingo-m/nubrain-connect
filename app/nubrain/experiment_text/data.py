@@ -1,18 +1,22 @@
 import json
+import os
 from time import time
 
 import h5py
 import numpy as np
 
 from nubrain.experiment_text.text_config import TextConfig
+from nubrain.storage.gcloud_bucket_upload import upload_to_gcs
 
 text_config = TextConfig()
 
 
 def eeg_data_logging(subprocess_params: dict):
     """
-    Log experimental data. Save to local hdf file. To be run in separate process (using
-    multiprocessing).
+    Log experimental data.
+
+    Continuously save to local hdf file. Upload to google cloud storage bucket at the
+    end of the run. To be run in separate process (using multiprocessing).
 
     Please note that the stimulus onset and offset timestamps (`stimulus_start_time` and
     `stimulus_end_time`) use the LSL local clock, which is in seconds, but not aligned
@@ -21,6 +25,8 @@ def eeg_data_logging(subprocess_params: dict):
     """
     # ----------------------------------------------------------------------------------
     # *** Get parameters
+
+    device_type = subprocess_params["device_type"]
 
     path_text = subprocess_params["path_text"]
 
@@ -58,9 +64,14 @@ def eeg_data_logging(subprocess_params: dict):
     text = subprocess_params["text"]  # List of str
     is_target = subprocess_params["is_target"]  # List of bool
 
+    # Storage
+    path_out_data = subprocess_params["path_out_data"]
+    storage_bucket_name = subprocess_params["storage_bucket_name"]
+    storage_blob_name = subprocess_params["storage_blob_name"]
+    storage_bucket_credentials = subprocess_params["storage_bucket_credentials"]
+
     # Misc
     utility_frequency = subprocess_params["utility_frequency"]
-    path_out_data = subprocess_params["path_out_data"]
     data_logging_queue = subprocess_params["data_logging_queue"]
 
     # ----------------------------------------------------------------------------------
@@ -68,6 +79,7 @@ def eeg_data_logging(subprocess_params: dict):
 
     experiment_metadata = {
         "config_version": text_config.config_version,
+        "device_type": device_type,
         "subject_id": subject_id,
         "session_id": session_id,
         "path_text": path_text,
@@ -337,3 +349,22 @@ def eeg_data_logging(subprocess_params: dict):
 
                     # Write the structured array to the dataset.
                     hdf5_behavioural_data[0] = data_to_write
+
+    # ----------------------------------------------------------------------------------
+    # *** Upload to cloud storage
+
+    # Upload hdf5 file to google cloud storage bucket at the end of the run.
+
+    filename = os.path.split(path_out_data)[-1]
+
+    _storage_blob_name = storage_blob_name.format(
+        device_type=device_type,
+        filename=filename,
+    )
+
+    upload_to_gcs(
+        local_file_path=path_out_data,
+        bucket_name=storage_bucket_name,
+        destination_blob_name=_storage_blob_name,
+        credentials_file_path=storage_bucket_credentials,
+    )

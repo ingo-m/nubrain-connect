@@ -24,6 +24,10 @@ class EegExperimentConfig:
     output_directory: str
     path_text: str
 
+    storage_bucket_name: str
+    storage_blob_name: str
+    storage_bucket_credentials: str
+
     utility_frequency: float
 
     # Timing parameters
