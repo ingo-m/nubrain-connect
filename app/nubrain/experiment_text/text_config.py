@@ -8,8 +8,17 @@ class TextConfig:
         self.config_version = version
         # Color values for experimental rest condition (e.g. grey).
         self.rest_condition_color = (0, 0, 0)
-        # Font color.
-        self.font_color = (255, 255, 255)
+        # Font colors. If more than one, will sample randomly on each trial. Will use
+        # first color in list for rendering behavioural results.
+        self.font_colors = [
+            (255, 255, 255),
+            (255, 0, 0),
+            (0, 255, 0),
+            (0, 0, 255),
+            (0, 255, 255),
+            (255, 0, 255),
+            (255, 255, 0),
+        ]
         # Markers for stimulus start and end (will be stored in marker channel).
         self.stim_start_marker = global_config.stim_start_marker
         self.stim_end_marker = global_config.stim_end_marker

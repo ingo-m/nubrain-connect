@@ -1,18 +1,22 @@
 import json
+import os
 from time import time
 
 import h5py
 import numpy as np
 
 from nubrain.experiment_text.text_config import TextConfig
+from nubrain.storage.gcloud_bucket_upload import upload_to_gcs
 
 text_config = TextConfig()
 
 
 def eeg_data_logging(subprocess_params: dict):
     """
-    Log experimental data. Save to local hdf file. To be run in separate process (using
-    multiprocessing).
+    Log experimental data.
+
+    Continuously save to local hdf file. Upload to google cloud storage bucket at the
+    end of the run. To be run in separate process (using multiprocessing).
 
     Please note that the stimulus onset and offset timestamps (`stimulus_start_time` and
     `stimulus_end_time`) use the LSL local clock, which is in seconds, but not aligned
@@ -21,6 +25,8 @@ def eeg_data_logging(subprocess_params: dict):
     """
     # ----------------------------------------------------------------------------------
     # *** Get parameters
+
+    device_type = subprocess_params["device_type"]
 
     path_text = subprocess_params["path_text"]
 
@@ -50,15 +56,22 @@ def eeg_data_logging(subprocess_params: dict):
     n_target_events = subprocess_params["n_target_events"]
     min_distance_targets = subprocess_params["min_distance_targets"]
     stimuli_per_block = subprocess_params["stimuli_per_block"]
-    stimulus_font_size = subprocess_params["stimulus_font_size"]
+    stimulus_font_sizes = subprocess_params["stimulus_font_sizes"]
+    stimulus_font_min_spacing = subprocess_params["stimulus_font_min_spacing"]
+    stimulus_font_max_spacing = subprocess_params["stimulus_font_max_spacing"]
 
     # Text and targets
     text = subprocess_params["text"]  # List of str
     is_target = subprocess_params["is_target"]  # List of bool
 
+    # Storage
+    path_out_data = subprocess_params["path_out_data"]
+    storage_bucket_name = subprocess_params["storage_bucket_name"]
+    storage_blob_name = subprocess_params["storage_blob_name"]
+    storage_bucket_credentials = subprocess_params["storage_bucket_credentials"]
+
     # Misc
     utility_frequency = subprocess_params["utility_frequency"]
-    path_out_data = subprocess_params["path_out_data"]
     data_logging_queue = subprocess_params["data_logging_queue"]
 
     # ----------------------------------------------------------------------------------
@@ -66,6 +79,7 @@ def eeg_data_logging(subprocess_params: dict):
 
     experiment_metadata = {
         "config_version": text_config.config_version,
+        "device_type": device_type,
         "subject_id": subject_id,
         "session_id": session_id,
         "path_text": path_text,
@@ -92,7 +106,9 @@ def eeg_data_logging(subprocess_params: dict):
         "n_target_events": n_target_events,
         "min_distance_targets": min_distance_targets,
         "stimuli_per_block": stimuli_per_block,
-        "stimulus_font_size": stimulus_font_size,
+        "stimulus_font_sizes": stimulus_font_sizes,
+        "stimulus_font_min_spacing": stimulus_font_min_spacing,
+        "stimulus_font_max_spacing": stimulus_font_max_spacing,
         # Text and targets
         "text": text,  # List of str
         "is_target": is_target,  # List of bool
@@ -173,6 +189,14 @@ def eeg_data_logging(subprocess_params: dict):
                 ("stimulus_end_time", np.float64),
                 ("stimulus_duration_s", np.float64),
                 ("word", h5py.string_dtype(encoding="utf-8")),
+                ("font_name", h5py.string_dtype(encoding="utf-8")),
+                ("font_size", np.int64),
+                ("font_is_bold", np.bool),
+                ("font_is_italic", np.bool),
+                ("font_color_r", np.uint8),
+                ("font_color_g", np.uint8),
+                ("font_color_b", np.uint8),
+                ("font_spacing", np.float64),
                 ("is_target_event", np.bool),
                 ("response_time_s", np.float64),
             ]
@@ -264,15 +288,35 @@ def eeg_data_logging(subprocess_params: dict):
                     stimulus_start_time = new_stimulus_data["stimulus_start_time"]
                     stimulus_end_time = new_stimulus_data["stimulus_end_time"]
                     stimulus_duration_s = new_stimulus_data["stimulus_duration_s"]
+
                     word = new_stimulus_data["word"]
+                    font_name = new_stimulus_data["font_name"]
+                    font_size = new_stimulus_data["font_size"]
+                    font_is_bold = new_stimulus_data["font_is_bold"]
+                    font_is_italic = new_stimulus_data["font_is_italic"]
+                    font_color = new_stimulus_data["font_color"]
+                    font_spacing = new_stimulus_data["font_spacing"]
+
                     is_target_event = new_stimulus_data["is_target_event"]
                     response_time_s = new_stimulus_data["response_time_s"]
 
                     data_to_write = np.empty((1,), dtype=stimulus_dtype)
+
                     data_to_write[0]["stimulus_start_time"] = stimulus_start_time
                     data_to_write[0]["stimulus_end_time"] = stimulus_end_time
                     data_to_write[0]["stimulus_duration_s"] = stimulus_duration_s
+
                     data_to_write[0]["word"] = word
+                    data_to_write[0]["font_name"] = font_name
+                    data_to_write[0]["font_size"] = font_size
+                    data_to_write[0]["font_is_bold"] = font_is_bold
+                    data_to_write[0]["font_is_italic"] = font_is_italic
+                    data_to_write[0]["font_color_r"] = font_color[0]
+                    data_to_write[0]["font_color_g"] = font_color[1]
+                    data_to_write[0]["font_color_b"] = font_color[2]
+
+                    data_to_write[0]["font_spacing"] = font_spacing
+
                     data_to_write[0]["is_target_event"] = is_target_event
                     data_to_write[0]["response_time_s"] = response_time_s
 
@@ -306,5 +350,21 @@ def eeg_data_logging(subprocess_params: dict):
                     # Write the structured array to the dataset.
                     hdf5_behavioural_data[0] = data_to_write
 
+    # ----------------------------------------------------------------------------------
+    # *** Upload to cloud storage
 
-# End of data preprocessing process.
+    # Upload hdf5 file to google cloud storage bucket at the end of the run.
+
+    filename = os.path.split(path_out_data)[-1]
+
+    _storage_blob_name = storage_blob_name.format(
+        device_type=device_type,
+        filename=filename,
+    )
+
+    upload_to_gcs(
+        local_file_path=path_out_data,
+        bucket_name=storage_bucket_name,
+        destination_blob_name=_storage_blob_name,
+        credentials_file_path=storage_bucket_credentials,
+    )

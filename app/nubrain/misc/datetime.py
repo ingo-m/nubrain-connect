@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, timezone
 
 
 def get_formatted_current_datetime():
@@ -8,6 +8,6 @@ def get_formatted_current_datetime():
     Returns:
       str: The formatted date and time string.
     """
-    now = datetime.datetime.now()
+    now = datetime.now(timezone.utc)
     formatted_datetime = now.strftime("%Y-%m-%d-%H%M%S")
     return formatted_datetime

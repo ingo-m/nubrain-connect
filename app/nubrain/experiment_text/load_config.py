@@ -24,6 +24,10 @@ class EegExperimentConfig:
     output_directory: str
     path_text: str
 
+    storage_bucket_name: str
+    storage_blob_name: str
+    storage_bucket_credentials: str
+
     utility_frequency: float
 
     # Timing parameters
@@ -41,7 +45,9 @@ class EegExperimentConfig:
     n_target_events: int
     min_distance_targets: int
     stimuli_per_block: int
-    stimulus_font_size: int
+    stimulus_font_sizes: list[int]
+    stimulus_font_min_spacing: float
+    stimulus_font_max_spacing: float
 
     device_type: str
     lsl_stream_name: Optional[str] = "DSI-24"
