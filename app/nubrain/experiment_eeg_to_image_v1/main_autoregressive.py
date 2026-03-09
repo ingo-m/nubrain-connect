@@ -110,7 +110,7 @@ def experiment_eeg_to_image_v1_autoregressive(config: dict):
         raise AssertionError(f"Target directory does not exist: {output_directory}")
 
     current_datetime = get_formatted_current_datetime()
-    path_out_data = os.path.join(output_directory, f"eeg_session_{current_datetime}.h5")
+    path_out_data = os.path.join(output_directory, f"eeg_{current_datetime}.h5")
 
     if os.path.isfile(path_out_data):
         raise AssertionError(f"Target file already exists: {path_out_data}")
