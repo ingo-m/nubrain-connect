@@ -1,4 +1,5 @@
 import random
+from copy import copy
 
 
 def words_identical(word_1: str, word_2: str):
@@ -46,8 +47,8 @@ def check_targets_too_close(*, target_idcs: list[int], min_distance_targets: int
 
     # Loop over target events.
     for idx_sample in range(0, (len(target_idcs) - 1)):
-        # Current target event (word index, e.g. 7 would correspond to the 7th word
-        # in the text.
+        # Current target event (word index, e.g. 7 would correspond to the 7th word in
+        # the text.
         target_idx = target_idcs[idx_sample]
         # Index of the subsequent target event.
         next_target_idx = target_idcs[idx_sample + 1]
@@ -167,20 +168,29 @@ def sample_target_events(
     # Update number of words after potentially removing natural / double target events.
     n_words = len(text)
 
+    # Indices of target events (on a target event, the word will be repeated). For
+    # example, a target event index of 7 means that the 7th word in the text will be a
+    # target event (and will be repeated).
+
     done = False
     while not done:
         # Check if we need to add additional, randomly sampled target events (in
         # addition to potentially occurring "natural" target events in the original
         # text).
         if n_natural_target_events < n_target_events:
-            # Indices of target events (on a target event, the word will be repeated).
-            # For example, a target event index of 7 means that the 7th word in the text
-            # will be a target event (and will be repeated).
-            target_event_word_idcs = random.sample(
-                range(1, (n_words - 1)),
-                (n_target_events - n_natural_target_events),
-            )
-            target_event_word_idcs = target_event_word_idcs + natural_target_event_idcs
+            # Inefficient solution, but doesn't matter as it only needs to run once,
+            # offline.
+            target_event_word_idcs = copy(natural_target_event_idcs)
+            while len(target_event_word_idcs) < n_target_events:
+                potential_sample = random.randrange(1, (n_words - 1))
+                targets_too_close = check_targets_too_close(
+                    target_idcs=copy(target_event_word_idcs) + [potential_sample],
+                    min_distance_targets=min_distance_targets,
+                )
+                if targets_too_close:
+                    continue
+                else:
+                    target_event_word_idcs.append(potential_sample)
         else:
             # There are enough 'natural' target events, no need to sample additional
             # ones.
