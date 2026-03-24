@@ -18,8 +18,9 @@ class EegExperimentConfig:
     runtime.
     """
 
-    subject_id: str
-    session_id: str
+    # Moved to `session_config.yaml` for ease of use.
+    # subject_id: str
+    # session_id: str
 
     output_directory: str
     path_text: str
@@ -40,7 +41,7 @@ class EegExperimentConfig:
     response_window_duration: float
 
     # Experiment structure
-    word_idx_start: int
+    # word_idx_start: int  # Moved to `session_config.yaml` for ease of use.
     n_words_to_show: int
     n_target_events: int
     min_distance_targets: int
@@ -50,7 +51,7 @@ class EegExperimentConfig:
     stimulus_font_max_spacing: float
 
     device_type: str
-    lsl_stream_name: Optional[str] = "DSI-24"
+    lsl_stream_name: Optional[str] = "WS-default"
 
     eeg_device_address: Optional[str] = None
 

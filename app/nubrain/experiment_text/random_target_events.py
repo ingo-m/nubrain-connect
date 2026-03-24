@@ -1,4 +1,25 @@
 import random
+from copy import copy
+
+
+def words_identical(word_1: str, word_2: str):
+    """
+    Compare words, ignoring capitalization and punctuation. For example "Horse" and
+    "horse" are counted as identical. Similarly, "horse," and "horse" are considered
+    identical. The reason for this is that in the listening condition it would
+    otherwise be difficult to identify target events (because "horse," and "horse" sound
+    similar).
+    """
+    word_1 = word_1.lower()
+    word_2 = word_2.lower()
+
+    word_1 = "".join(char for char in word_1 if char.isalnum())
+    word_2 = "".join(char for char in word_2 if char.isalnum())
+
+    if word_1 == word_2:
+        return True
+    else:
+        return False
 
 
 def get_target_events(*, text: list[str]):
@@ -10,7 +31,7 @@ def get_target_events(*, text: list[str]):
     for idx_word in range(0, (len(text) - 1)):
         this_word = text[idx_word]
         next_word = text[idx_word + 1]
-        if this_word == next_word:
+        if words_identical(this_word, next_word):
             target_event_idcs.append(idx_word + 1)
 
     return target_event_idcs
@@ -26,8 +47,8 @@ def check_targets_too_close(*, target_idcs: list[int], min_distance_targets: int
 
     # Loop over target events.
     for idx_sample in range(0, (len(target_idcs) - 1)):
-        # Current target event (word index, e.g. 7 would correspond to the 7th word
-        # in the text.
+        # Current target event (word index, e.g. 7 would correspond to the 7th word in
+        # the text.
         target_idx = target_idcs[idx_sample]
         # Index of the subsequent target event.
         next_target_idx = target_idcs[idx_sample + 1]
@@ -54,7 +75,11 @@ def remove_double_repeats(*, text: list[str]):
     for word in text:
         # Check if we already have at least 2 words in the result and if the last two
         # words match the current word.
-        if len(result) >= 2 and result[-1] == word and result[-2] == word:
+        if (
+            len(result) >= 2
+            and words_identical(result[-1], word)
+            and words_identical(result[-2], word)
+        ):
             continue  # Skip adding this word
 
         result.append(word)
@@ -143,20 +168,29 @@ def sample_target_events(
     # Update number of words after potentially removing natural / double target events.
     n_words = len(text)
 
+    # Indices of target events (on a target event, the word will be repeated). For
+    # example, a target event index of 7 means that the 7th word in the text will be a
+    # target event (and will be repeated).
+
     done = False
     while not done:
         # Check if we need to add additional, randomly sampled target events (in
         # addition to potentially occurring "natural" target events in the original
         # text).
         if n_natural_target_events < n_target_events:
-            # Indices of target events (on a target event, the word will be repeated).
-            # For example, a target event index of 7 means that the 7th word in the text
-            # will be a target event (and will be repeated).
-            target_event_word_idcs = random.sample(
-                range(1, (n_words - 1)),
-                (n_target_events - n_natural_target_events),
-            )
-            target_event_word_idcs = target_event_word_idcs + natural_target_event_idcs
+            # Inefficient solution, but doesn't matter as it only needs to run once,
+            # offline.
+            target_event_word_idcs = copy(natural_target_event_idcs)
+            while len(target_event_word_idcs) < n_target_events:
+                potential_sample = random.randrange(1, (n_words - 1))
+                targets_too_close = check_targets_too_close(
+                    target_idcs=copy(target_event_word_idcs) + [potential_sample],
+                    min_distance_targets=min_distance_targets,
+                )
+                if targets_too_close:
+                    continue
+                else:
+                    target_event_word_idcs.append(potential_sample)
         else:
             # There are enough 'natural' target events, no need to sample additional
             # ones.

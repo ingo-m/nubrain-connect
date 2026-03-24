@@ -1,7 +1,10 @@
 import argparse
+import os
 
 from nubrain.experiment_image.load_config import load_config_image_yaml
-from nubrain.experiment_text.load_config import load_config_text_yaml
+from nubrain.experiment_text.gui import SessionConfigEditor
+from nubrain.experiment_text.load_experiment_config import load_config_text_yaml
+from nubrain.experiment_text.map_config import map_session_config_to_experiment_config
 
 # Wrap these imports in try, so that the other modules can be imported without
 # dependency on pylsl for demo mode.
@@ -37,7 +40,7 @@ def main():
         "--config",
         type=str,
         required=True,
-        help="Path to the configuration YAML file.",
+        help="Path to the experiment configuration YAML file.",
     )
 
     # Which experimental mode to use. Options:
@@ -51,7 +54,7 @@ def main():
     parser.add_argument(
         "--mode",
         type=str,
-        default="data_collection_image",
+        default="data_collection_text",
         help="Which experimental mode to use",
     )
 
@@ -84,6 +87,22 @@ def main():
     if mode == "data_collection_image":
         experiment_image(config=config)
     elif mode == "data_collection_text":
+        # Show GUI for user to update session parameters (subject ID, next run).
+        session_config_path = os.path.join(
+            os.path.dirname(__file__),
+            "session_config.yaml",
+        )
+        gui = SessionConfigEditor(session_config_path=session_config_path)
+        session_config = gui.run()
+        if session_config is None:
+            # User pressed the cancel button.
+            print("Cancelled.")
+            return None
+        # Map values (subject, session, run) from session config to experiment config.
+        config = map_session_config_to_experiment_config(
+            session_config=session_config,
+            experiment_config=config,
+        )
         experiment_text(config=config)
     elif mode == "eeg_to_image":
         experiment_eeg_to_image_v1(config=config)
@@ -91,6 +110,8 @@ def main():
         experiment_eeg_to_image_v1_autoregressive(config=config)
     elif mode == "eeg_to_image_live_demo":
         run_live_demo(cache=input_file_path)  # Pickle file path
+
+    return None
 
 
 if __name__ == "__main__":
