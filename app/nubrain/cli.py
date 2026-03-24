@@ -90,6 +90,7 @@ def main():
         # Show GUI for user to update session parameters (subject ID, next run).
         session_config_path = os.path.join(
             os.path.dirname(__file__),
+            "experiment_text",
             "session_config.yaml",
         )
         gui = SessionConfigEditor(session_config_path=session_config_path)
