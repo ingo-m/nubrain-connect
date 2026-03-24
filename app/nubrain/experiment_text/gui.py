@@ -39,7 +39,7 @@ class SessionConfigEditor:
 
     # Target fraction of screen real estate
     WIDTH_FRACTION = 0.3
-    HEIGHT_FRACTION = 0.13
+    HEIGHT_FRACTION = 0.2
 
     def __init__(self, *, session_config_path: str):
         self.session_config_path = Path(session_config_path)
