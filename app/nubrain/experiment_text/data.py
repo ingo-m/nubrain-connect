@@ -323,7 +323,6 @@ def eeg_data_logging(subprocess_params: dict):
                     # Write the structured array to the dataset.
                     hdf5_stimulus_data[stimulus_counter] = data_to_write
 
-                    print(f"Stimulus counter: {stimulus_counter}")
                     stimulus_counter += 1
 
             # --------------------------------------------------------------------------
