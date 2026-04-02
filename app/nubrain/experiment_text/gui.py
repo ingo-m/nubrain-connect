@@ -43,7 +43,7 @@ class SessionConfigEditor:
 
     def __init__(self, *, session_config_path: str):
         self.session_config_path = Path(session_config_path)
-        with open(self.session_config_path) as file:
+        with open(self.session_config_path, "rb") as file:
             self.session_config = yaml.safe_load(file)
 
         self.start_button_press = False
@@ -162,7 +162,7 @@ class SessionConfigEditor:
             self.input_value_validation()
 
             # Write changes made in GUI back to file.
-            with open(self.session_config_path, "w") as file:
+            with open(self.session_config_path, "w", encoding="utf-8") as file:
                 yaml.safe_dump(self.session_config, file)
 
             return self.session_config

@@ -1,5 +1,5 @@
 def load_text(*, path_text: str):
-    with open(path_text, "r") as file:
+    with open(path_text, "r", encoding="utf-8") as file:
         text = file.read()
     return text
 
@@ -13,7 +13,7 @@ def exclude_invalid_chars(*, text: str):
     text = text.replace("\n", " ")
     text = text.replace("—", " ")
     text = text.replace("_", " ")
-    text = text.replace(b"\xe3\x80\x80".decode('utf8'), " ")
+    text = text.replace(b"\xe3\x80\x80".decode("utf8"), " ")
 
     punctuation_chars = PunctuationChars().allowed
 

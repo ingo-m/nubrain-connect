@@ -139,7 +139,7 @@ def load_config_yaml_eeg_to_image_v1(*, yaml_file_path: str):
     if not os.path.isfile(yaml_file_path):
         raise AssertionError(f"Config file not found: {yaml_file_path}")
 
-    with open(yaml_file_path, "r") as file:
+    with open(yaml_file_path, "rb") as file:
         config_dict = yaml.safe_load(file)
 
     # Ensure optional fields are present in the dict with None if not specified.
