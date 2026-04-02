@@ -40,5 +40,5 @@ nubrain --mode=data_collection_image --config=/path/to/example_config.yaml
 
 ```bash
 conda activate py-nubrain
-nubrain --mode=eeg_to_image_live_demo --config=/path/to/cached.pickle
+nubrain --mode=demo_text --config=/path/to/experiment_config_demo_text.yaml
 ```

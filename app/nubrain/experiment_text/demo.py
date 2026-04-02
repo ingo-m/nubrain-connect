@@ -222,8 +222,6 @@ def text_demo(config: dict):
                 pygame.display.flip()
                 t_stim_end_actual = time()
 
-                eeg_data, eeg_ts = time()
-
                 # Time until when to show grey screen (ISI).
                 t_isi_end = (
                     t_stim_end_actual
