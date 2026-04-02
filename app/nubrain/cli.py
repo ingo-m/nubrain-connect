@@ -2,6 +2,7 @@ import argparse
 import os
 
 from nubrain.experiment_image.load_config import load_config_image_yaml
+from nubrain.experiment_text.demo import text_demo
 from nubrain.experiment_text.gui import SessionConfigEditor
 from nubrain.experiment_text.load_experiment_config import load_config_text_yaml
 from nubrain.experiment_text.map_config import map_session_config_to_experiment_config
@@ -45,6 +46,7 @@ def main():
 
     # Which experimental mode to use. Options:
     # - "data_collection_image": Data collection mode for image stimuli.
+    # - "demo_text":  Demo mode with text stimuli for instructing participants.
     # - "data_collection_text":  Data collection mode for text stimuli.
     # - "eeg_to_image":  After presenting each image, directly reconstruct the image,
     #   then show the next image.
@@ -71,7 +73,7 @@ def main():
     if mode == "data_collection_image":
         # Data collection mode, image stimuli.
         config = load_config_image_yaml(yaml_file_path=input_file_path)
-    elif mode == "data_collection_text":
+    elif mode in ["demo_text", "data_collection_text"]:
         # Data collection mode, text stimuli.
         config = load_config_text_yaml(yaml_file_path=input_file_path)
     elif mode in ["eeg_to_image", "eeg_to_image_autoregressive"]:
@@ -86,7 +88,7 @@ def main():
     # Run experiment.
     if mode == "data_collection_image":
         experiment_image(config=config)
-    elif mode == "data_collection_text":
+    elif mode in ["demo_text", "data_collection_text"]:
         # Show GUI for user to update session parameters (subject ID, next run).
         session_config_path = os.path.join(
             os.path.dirname(__file__),
@@ -104,7 +106,12 @@ def main():
             session_config=session_config,
             experiment_config=config,
         )
-        experiment_text(config=config)
+        if mode == "data_collection_text":
+            experiment_text(config=config)
+        elif mode == "demo_text":
+            text_demo(config=config)
+        else:
+            raise AssertionError
     elif mode == "eeg_to_image":
         experiment_eeg_to_image_v1(config=config)
     elif mode == "eeg_to_image_autoregressive":
