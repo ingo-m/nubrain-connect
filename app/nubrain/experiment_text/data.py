@@ -49,6 +49,9 @@ def eeg_data_logging(subprocess_params: dict):
     isi_jitter = subprocess_params["isi_jitter"]
     isi_extension_target = subprocess_params["isi_extension_target"]
     inter_block_rest_duration = subprocess_params["inter_block_rest_duration"]
+    n_chars_long_word_threshold = subprocess_params["n_chars_long_word_threshold"]
+    extra_duration_per_char = subprocess_params["extra_duration_per_char"]
+    max_extra_stimulus_duration = subprocess_params["max_extra_stimulus_duration"]
 
     # Experiment structure
     word_idx_start = subprocess_params["word_idx_start"]
@@ -100,6 +103,9 @@ def eeg_data_logging(subprocess_params: dict):
         "isi_jitter": isi_jitter,
         "isi_extension_target": isi_extension_target,
         "inter_block_rest_duration": inter_block_rest_duration,
+        "n_chars_long_word_threshold": n_chars_long_word_threshold,
+        "extra_duration_per_char": extra_duration_per_char,
+        "max_extra_stimulus_duration": max_extra_stimulus_duration,
         # Experiment structure
         "word_idx_start": word_idx_start,
         "n_words_to_show": n_words_to_show,
