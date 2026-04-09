@@ -39,6 +39,9 @@ class EegExperimentConfig:
     isi_extension_target: float
     inter_block_rest_duration: float
     response_window_duration: float
+    n_chars_long_word_threshold: int
+    extra_duration_per_char: float
+    max_extra_stimulus_duration: float
 
     # Experiment structure
     # word_idx_start: int  # Moved to `session_config.yaml` for ease of use.
