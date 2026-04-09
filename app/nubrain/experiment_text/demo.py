@@ -32,6 +32,9 @@ def text_demo(config: dict):
     isi_extension_target = config["isi_extension_target"]
     inter_block_rest_duration = config["inter_block_rest_duration"]
     response_window_duration = config["response_window_duration"]
+    n_chars_long_word_threshold = config["n_chars_long_word_threshold"]
+    extra_duration_per_char = config["extra_duration_per_char"]
+    max_extra_stimulus_duration = config["max_extra_stimulus_duration"]
 
     word_idx_start = config["word_idx_start"]
     n_words_to_show = config["n_words_to_show"]
@@ -157,6 +160,22 @@ def text_demo(config: dict):
                 if not running:  # Check for quit event
                     break
 
+                # Extend stimulus duration for long words.
+                n_chars = len(word)
+                if n_chars > n_chars_long_word_threshold:
+                    # By how many characters does the current word exceed the character
+                    # threshold for extending stimulus duration.
+                    n_excess_chars = n_chars - n_chars_long_word_threshold
+                    extra_stimulus_duration = extra_duration_per_char * n_excess_chars
+                    # Never prolong stimulus duration for more than x seconds
+                    # (irrespective of number of characters).
+                    extra_stimulus_duration = min(
+                        extra_stimulus_duration, max_extra_stimulus_duration
+                    )
+                else:
+                    # Word length is not above threshold (regular stimulus duration).
+                    extra_stimulus_duration = 0.0
+
                 # Randomly sample a font (we render the stimulus using different fonts
                 # to achieve different stimulus appearance in terms of low-level visual
                 # features.
@@ -188,10 +207,14 @@ def text_demo(config: dict):
 
                 response_made = False
                 response_time = np.nan
-                response_deadline = t_stim_start + response_window_duration
+                response_deadline = (
+                    t_stim_start + response_window_duration + extra_stimulus_duration
+                )
 
                 # Wait for stimulus duration, but check for responses continuously.
-                t_stim_end_expected = t_stim_start + stimulus_duration
+                t_stim_end_expected = (
+                    t_stim_start + stimulus_duration + extra_stimulus_duration
+                )
                 while time() < t_stim_end_expected:
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
