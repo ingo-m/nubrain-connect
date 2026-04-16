@@ -3,6 +3,7 @@ Demo mode for instructing participants. Does not use EEG device, only presents a
 series of text stimuli (i.e. words).
 """
 
+import json
 import random
 import traceback
 from time import time
@@ -11,10 +12,8 @@ import numpy as np
 import pygame
 
 from nubrain.audio.tone import generate_tone
-from nubrain.experiment_text.random_target_events import sample_target_events
 from nubrain.experiment_text.text_config import TextConfig
 from nubrain.text.rendering import construct_fonts, render_spaced_text
-from nubrain.text.tools import load_and_preprocess_text
 
 
 def text_demo(config: dict):
@@ -23,7 +22,7 @@ def text_demo(config: dict):
 
     device_type = config["device_type"]
 
-    path_text = config["path_text"]
+    path_stimuli = config["path_stimuli"]
 
     initial_rest_duration = config["initial_rest_duration"]
     stimulus_duration = config["stimulus_duration"]
@@ -36,10 +35,9 @@ def text_demo(config: dict):
     extra_duration_per_char = config["extra_duration_per_char"]
     max_extra_stimulus_duration = config["max_extra_stimulus_duration"]
 
-    word_idx_start = config["word_idx_start"]
-    n_words_to_show = config["n_words_to_show"]
-    n_target_events = config["n_target_events"]
-    min_distance_targets = config["min_distance_targets"]
+    section_idx_start = config["section_idx_start"]
+    n_sections_to_show = config["n_sections_to_show"]
+
     stimuli_per_block = config["stimuli_per_block"]
     stimulus_font_sizes = config["stimulus_font_sizes"]
     stimulus_font_min_spacing = config["stimulus_font_min_spacing"]
@@ -48,23 +46,26 @@ def text_demo(config: dict):
     text_config = TextConfig()
 
     # ----------------------------------------------------------------------------------
-    # *** Load text
+    # *** Load stimulus data from JSON file
 
-    # Load text from file.
-    text = load_and_preprocess_text(path_text=path_text)
+    with open(path_stimuli, "r", encoding="utf-8") as file:
+        stimulus_data = json.load(file)
+
+    text_sections = stimulus_data["text_sections"]
+
+    # Only used for logging.
+    min_distance_targets = stimulus_data["min_distance_targets"]
+    min_words_per_section = stimulus_data["min_words_per_section"]
+    ratio_target_events = stimulus_data["ratio_target_events"]
+    words_per_section = stimulus_data["words_per_section"]
 
     # Select subset of text.
-    text = text[word_idx_start : (word_idx_start + n_words_to_show)]
+    text_sections = text_sections[
+        section_idx_start : (section_idx_start + n_sections_to_show)
+    ]
 
-    # Random target events. In case of a target event, the word will be repeated.
-    text_and_targets = sample_target_events(
-        text=text,
-        n_target_events=n_target_events,
-        min_distance_targets=min_distance_targets,
-    )
-
-    text = text_and_targets["text_with_targets"]
-    is_target = text_and_targets["is_target"]
+    text = [x for xs in [x["text_with_targets"] for x in text_sections] for x in xs]
+    is_target = [x for xs in [x["is_target"] for x in text_sections] for x in xs]
 
     # ----------------------------------------------------------------------------------
     # *** Start experiment

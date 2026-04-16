@@ -23,7 +23,7 @@ class EegExperimentConfig:
     # session_id: str
 
     output_directory: str
-    path_text: str
+    path_stimuli: str
 
     storage_bucket_name: str
     storage_blob_name: str
@@ -44,10 +44,8 @@ class EegExperimentConfig:
     max_extra_stimulus_duration: float
 
     # Experiment structure
-    # word_idx_start: int  # Moved to `session_config.yaml` for ease of use.
-    n_words_to_show: int
-    n_target_events: int
-    min_distance_targets: int
+    # section_idx_start: int  # Moved to `session_config.yaml` for ease of use.
+    n_sections_to_show: int
     stimuli_per_block: int
     stimulus_font_sizes: list[int]
     stimulus_font_min_spacing: float
@@ -146,9 +144,6 @@ class EegExperimentConfig:
             self.stimulus_duration + self.isi_duration + self.isi_extension_target
         ) < self.response_window_duration:
             raise ValueError("Response window is longer than trial duration")
-
-        if self.n_target_events < 0:
-            ValueError("Negativ number of target events")
 
         print("Configuration successfully loaded and validated.")
 

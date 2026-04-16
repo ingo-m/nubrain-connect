@@ -28,7 +28,7 @@ def eeg_data_logging(subprocess_params: dict):
 
     device_type = subprocess_params["device_type"]
 
-    path_text = subprocess_params["path_text"]
+    path_stimuli = subprocess_params["path_stimuli"]
 
     subject_id = subprocess_params["subject_id"]
     session_id = subprocess_params["session_id"]
@@ -54,8 +54,8 @@ def eeg_data_logging(subprocess_params: dict):
     max_extra_stimulus_duration = subprocess_params["max_extra_stimulus_duration"]
 
     # Experiment structure
-    word_idx_start = subprocess_params["word_idx_start"]
-    n_words_to_show = subprocess_params["n_words_to_show"]
+    section_idx_start = subprocess_params["section_idx_start"]
+    n_sections_to_show = subprocess_params["n_sections_to_show"]
     n_target_events = subprocess_params["n_target_events"]
     min_distance_targets = subprocess_params["min_distance_targets"]
     stimuli_per_block = subprocess_params["stimuli_per_block"]
@@ -85,7 +85,7 @@ def eeg_data_logging(subprocess_params: dict):
         "device_type": device_type,
         "subject_id": subject_id,
         "session_id": session_id,
-        "path_text": path_text,
+        "path_stimuli": path_stimuli,
         "rest_condition_color": text_config.rest_condition_color,
         "stim_start_marker": text_config.stim_start_marker,
         "stim_end_marker": text_config.stim_end_marker,
@@ -107,8 +107,8 @@ def eeg_data_logging(subprocess_params: dict):
         "extra_duration_per_char": extra_duration_per_char,
         "max_extra_stimulus_duration": max_extra_stimulus_duration,
         # Experiment structure
-        "word_idx_start": word_idx_start,
-        "n_words_to_show": n_words_to_show,
+        "section_idx_start": section_idx_start,
+        "n_sections_to_show": n_sections_to_show,
         "n_target_events": n_target_events,
         "min_distance_targets": min_distance_targets,
         "stimuli_per_block": stimuli_per_block,

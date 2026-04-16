@@ -9,7 +9,7 @@ utility_frequency: 50.0 # Hz
 # session_id: "session-001"
 
 output_directory: "C:/Users/nubra/Documents/recordings_text_v1"
-path_text: "C:/Users/nubra/Documents/text/example.txt"
+path_stimuli: "C:/Users/nubra/Documents/text/example.json"
 
 # Storage bucket where to upload hdf5 file at the end of each run
 storage_bucket_name: "nubrain-eeg"
@@ -54,10 +54,8 @@ n_chars_long_word_threshold: 9 # Extend stimulus duration for long words longer 
 extra_duration_per_char: 0.1 # Extra stimulus duration per character above threshold.
 max_extra_stimulus_duration: 0.4 # Never prolong stimulus duration for more than x seconds (irrespective of number of characters)
 
-# word_idx_start: 3300  # Moved to `session_config.yaml` for ease of use.
-n_words_to_show: 600
-n_target_events: 5
-min_distance_targets: 5
+# section_idx_start: 0  # Moved to `session_config.yaml` for ease of use.
+n_sections_to_show: 5
 stimuli_per_block: 101
 stimulus_font_sizes: [56, 64, 72]
 stimulus_font_min_spacing: 0.0
