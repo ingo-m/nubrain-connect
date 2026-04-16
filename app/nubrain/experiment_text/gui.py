@@ -188,7 +188,7 @@ if __name__ == "__main__":
     if session_config is not None:
         from map_config import map_session_config_to_experiment_config
 
-        experiment_config = {"n_sections_to_show": 600}
+        experiment_config = {"n_sections_to_show": 5}
         updated_experiment_config = map_session_config_to_experiment_config(
             session_config=session_config,
             experiment_config=experiment_config,
