@@ -54,7 +54,13 @@ class EEGDeviceInterface(ABC):
 
 
 class BrainFlowDevice(EEGDeviceInterface):
-    """BrainFlow-based device implementation (OpenBCI Cyton & synthetic)."""
+    """
+    BrainFlow-based device implementation (OpenBCI Cyton & synthetic).
+
+    When using an OpenBCI device, we insert a stimulus marker into the time series data
+    on the EEG board. These markers can be used during analysis to identify stimulus
+    events.
+    """
 
     def __init__(
         self,
@@ -124,7 +130,13 @@ class BrainFlowDevice(EEGDeviceInterface):
 
 
 class DSI24Device(EEGDeviceInterface):
-    """DSI-24 device implementation using LSL."""
+    """
+    DSI-24 device implementation using LSL.
+
+    When using a DSI-24 device, we use LSL timestamps stored in the hdf5 file for
+    identifying stimulus events (i.e. we do not insert stimulus marker into the time
+    series data).
+    """
 
     def __init__(
         self,
