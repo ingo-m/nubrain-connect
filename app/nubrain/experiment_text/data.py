@@ -108,7 +108,6 @@ def eeg_data_logging(subprocess_params: dict):
         # Experiment structure
         "section_idx_start": section_idx_start,
         "n_sections_to_show": n_sections_to_show,
-        "n_target_events": n_target_events,
         "min_distance_targets": min_distance_targets,
         "stimuli_per_block": stimuli_per_block,
         "stimulus_font_sizes": stimulus_font_sizes,
