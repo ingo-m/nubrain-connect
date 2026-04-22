@@ -56,7 +56,6 @@ def eeg_data_logging(subprocess_params: dict):
     # Experiment structure
     section_idx_start = subprocess_params["section_idx_start"]
     n_sections_to_show = subprocess_params["n_sections_to_show"]
-    n_target_events = subprocess_params["n_target_events"]
     min_distance_targets = subprocess_params["min_distance_targets"]
     stimuli_per_block = subprocess_params["stimuli_per_block"]
     stimulus_font_sizes = subprocess_params["stimulus_font_sizes"]
