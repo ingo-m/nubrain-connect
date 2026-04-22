@@ -667,7 +667,7 @@ def experiment_text(config: dict):
                     )
 
             # --------------------------------------------------------------------------
-            # *** Log last stimulus data
+            # *** Log final stimulus data
 
             if need_to_log_previous_stimulus:
                 if t_stim_end_actual is None:
