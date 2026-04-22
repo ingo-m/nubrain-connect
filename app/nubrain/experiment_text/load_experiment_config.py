@@ -33,12 +33,16 @@ class EegExperimentConfig:
 
     # Timing parameters
     initial_rest_duration: float
+
     stimulus_duration: float
+    stimulus_jitter: float
+    stimulus_extension_target: float
+
     isi_duration: float
     isi_jitter: float
     isi_extension_target: float
+
     inter_block_rest_duration: float
-    response_window_duration: float
     n_chars_long_word_threshold: int
     extra_duration_per_char: float
     max_extra_stimulus_duration: float
@@ -137,13 +141,6 @@ class EegExperimentConfig:
             raise ValueError(
                 "eeg_device_address must be provided when using Cyton device"
             )
-
-        # Ensure that the response window (in which the participant to an attention task
-        # target event counts as a hit) end before the next trial.
-        if (
-            self.stimulus_duration + self.isi_duration + self.isi_extension_target
-        ) < self.response_window_duration:
-            raise ValueError("Response window is longer than trial duration")
 
         print("Configuration successfully loaded and validated.")
 

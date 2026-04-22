@@ -30,7 +30,6 @@ def text_demo(config: dict):
     isi_jitter = config["isi_jitter"]
     isi_extension_target = config["isi_extension_target"]
     inter_block_rest_duration = config["inter_block_rest_duration"]
-    response_window_duration = config["response_window_duration"]
     n_chars_long_word_threshold = config["n_chars_long_word_threshold"]
     extra_duration_per_char = config["extra_duration_per_char"]
     max_extra_stimulus_duration = config["max_extra_stimulus_duration"]

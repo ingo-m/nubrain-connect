@@ -3,6 +3,7 @@ import multiprocessing as mp
 import os
 import random
 import traceback
+from copy import deepcopy
 from time import sleep
 
 import numpy as np
@@ -41,11 +42,12 @@ def experiment_text(config: dict):
 
     initial_rest_duration = config["initial_rest_duration"]
     stimulus_duration = config["stimulus_duration"]
+    stimulus_jitter = config["stimulus_jitter"]
+    stimulus_extension_target = config["stimulus_extension_target"]
     isi_duration = config["isi_duration"]
     isi_jitter = config["isi_jitter"]
     isi_extension_target = config["isi_extension_target"]
     inter_block_rest_duration = config["inter_block_rest_duration"]
-    response_window_duration = config["response_window_duration"]
     n_chars_long_word_threshold = config["n_chars_long_word_threshold"]
     extra_duration_per_char = config["extra_duration_per_char"]
     max_extra_stimulus_duration = config["max_extra_stimulus_duration"]
@@ -78,15 +80,15 @@ def experiment_text(config: dict):
     # *** Load stimulus data from JSON file
 
     with open(path_stimuli, "r", encoding="utf-8") as file:
-        stimulus_data = json.load(file)
+        stimuli = json.load(file)
 
-    text_sections = stimulus_data["text_sections"]
+    text_sections = stimuli["text_sections"]
 
     # Only used for logging.
-    min_distance_targets = stimulus_data["min_distance_targets"]
-    min_words_per_section = stimulus_data["min_words_per_section"]
-    ratio_target_events = stimulus_data["ratio_target_events"]
-    words_per_section = stimulus_data["words_per_section"]
+    min_distance_targets = stimuli["min_distance_targets"]
+    min_words_per_section = stimuli["min_words_per_section"]
+    ratio_target_events = stimuli["ratio_target_events"]
+    words_per_section = stimuli["words_per_section"]
 
     # Select subset of text.
     text_sections = text_sections[
@@ -175,7 +177,6 @@ def experiment_text(config: dict):
         "isi_jitter": isi_jitter,
         "isi_extension_target": isi_extension_target,
         "inter_block_rest_duration": inter_block_rest_duration,
-        "response_window_duration": response_window_duration,
         "n_chars_long_word_threshold": n_chars_long_word_threshold,
         "extra_duration_per_char": extra_duration_per_char,
         "max_extra_stimulus_duration": max_extra_stimulus_duration,
@@ -229,8 +230,8 @@ def experiment_text(config: dict):
         pure_tone_end_delay = 1.0
 
         # Play the tone to cue the end of the inter-block interval x seconds before the
-        # end of the inter-block interval.
-        # Do not use the audio cue if the inter-block interval is too short.
+        # end of the inter-block interval. Do not use the audio cue if the inter-block
+        # interval is too short.
         if inter_block_rest_duration <= (pure_tone_end_delay + 0.1):
             print(
                 "WARNING: Will not use audio cue for the end of the inter-block "
@@ -309,6 +310,8 @@ def experiment_text(config: dict):
 
             # Count stimuli to introduce breaks between blocks.
             stimulus_block_counter = 0
+            t_stim_end_actual = None
+            need_to_log_previous_stimulus = False
 
             # Loop through words.
             for word, is_target_event in zip(text, is_target):
@@ -356,9 +359,53 @@ def experiment_text(config: dict):
                     center=(screen_width // 2, screen_height // 2)
                 )
                 screen.blit(stimulus_text, stimulus_rect)
+
+                # ----------------------------------------------------------------------
+                # *** Stimulus
+
                 pygame.display.flip()
                 # Start of stimulus presentation.
                 t_stim_start = eeg_device.lsl_local_clock()
+
+                # ----------------------------------------------------------------------
+                # *** Log previous stimulus
+
+                # Now that we have flipped the screen and are showing the stimulus, take
+                # the time and log data from previous stimulus. We do not need to log
+                # the previous stimulus if there was an ISI or inter-block interval (in
+                # that case, the stimulus gets logged at the beginning of the ISI or
+                # inter-block interval, because the beginning of that interval
+                # determines the stimulus end time).
+                if need_to_log_previous_stimulus:
+                    if t_stim_end_actual is None:
+                        # If there was no ISI or inter-block interval, the end time of
+                        # the previous stimulus is determined by the onset of the
+                        # current stimulus.
+                        t_stim_end_actual = t_stim_start
+
+                    if device_type in ["cyton", "synthetic"]:
+                        eeg_device.insert_marker(text_config.stim_end_marker)
+                    else:
+                        data_logging_queue.put(
+                            {
+                                "type": "marker",
+                                "marker_value": text_config.stim_end_marker,
+                                "timestamp": t_stim_end_actual,
+                            }
+                        )
+
+                    stimulus_data["response_time_s"] = response_time
+                    stimulus_data["stimulus_end_time"] = t_stim_end_actual
+                    stimulus_data["stimulus_duration_s"] = (
+                        t_stim_end_actual - stimulus_data["stimulus_start_time"]
+                    )
+
+                    data_logging_queue.put(
+                        {"type": "stimulus", "stimulus_data": stimulus_data}
+                    )
+
+                # ----------------------------------------------------------------------
+                # *** Continue stimulus presentation
 
                 # When using an OpenBCI device, we insert a stimulus marker into the
                 # time series data on the EEG board. These markers can be used during
@@ -376,16 +423,59 @@ def experiment_text(config: dict):
                         }
                     )
 
+                if stimulus_jitter > 0.0:
+                    # Randomly sample stimulus duration jitter for the current trial.
+                    stimulus_jitter_current_trial = np.random.uniform(
+                        low=0.0,
+                        high=stimulus_jitter,
+                    )
+                else:
+                    stimulus_jitter_current_trial = 0.0
+
                 response_made = False
                 response_time = np.nan
                 response_deadline = (
-                    t_stim_start + response_window_duration + extra_stimulus_duration
+                    t_stim_start  # Stimulus start time
+                    + stimulus_duration  # Regular stimulus duration
+                    + extra_stimulus_duration  # Extra stimulus duration for long words
+                    + stimulus_extension_target  # Extra stimulus duration for targets
+                    + stimulus_jitter_current_trial  # Random stimulus duration jitter
+                    + isi_duration  # Inter stimulus interval (can be zero)
+                    + isi_extension_target  # Extra ISI for targets (can be zero)
                 )
 
                 # Wait for stimulus duration, but check for responses continuously.
                 t_stim_end_expected = (
-                    t_stim_start + stimulus_duration + extra_stimulus_duration
+                    t_stim_start  # Stimulus start time
+                    + stimulus_duration  # Regular stimulus duration
+                    + extra_stimulus_duration  # Extra stimulus duration for long words
+                    + stimulus_jitter_current_trial  # Random stimulus duration jitter
                 )
+                if is_target_event:
+                    # Extra stimulus duration for targets.
+                    t_stim_end_expected += stimulus_extension_target
+
+                # The data from the current stimulus will be logged *after* flipping the
+                # screen for the next stimulus. Keep a deepcopy so as to log the
+                # parameters of the current stimulus (not the next one).
+                stimulus_data = deepcopy(
+                    {
+                        "stimulus_start_time": t_stim_start,
+                        "word": word,
+                        "font_name": font_name,
+                        "font_size": font_size,
+                        "font_is_bold": font_is_bold,
+                        "font_is_italic": font_is_italic,
+                        "font_spacing": font_spacing,
+                        "font_color": font_color,
+                        "is_target_event": is_target_event,
+                    }
+                )
+                need_to_log_previous_stimulus = True
+
+                stimulus_block_counter += 1
+
+                # Continue stimulus presentation until the current stimulus time is up.
                 while eeg_device.lsl_local_clock() < t_stim_end_expected:
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
@@ -411,27 +501,7 @@ def experiment_text(config: dict):
                 if not running:
                     break
 
-                # End of stimulus presentation. Display ISI grey screen.
-                screen.fill(text_config.rest_condition_color)
-                pygame.display.flip()
-                t_stim_end_actual = eeg_device.lsl_local_clock()
-
-                # When using an OpenBCI device, we insert a stimulus marker into the
-                # time series data on the EEG board. These markers can be used during
-                # analysis to identify stimulus events. For the DSI-24 device, we
-                # instead use LSL timestamps stored in the hdf5 file for identifying
-                # stimulus events.
-                if device_type in ["cyton", "synthetic"]:
-                    eeg_device.insert_marker(text_config.stim_end_marker)
-                else:
-                    data_logging_queue.put(
-                        {
-                            "type": "marker",
-                            "marker_value": text_config.stim_end_marker,
-                            "timestamp": t_stim_end_actual,
-                        }
-                    )
-
+                # Log EEG data.
                 eeg_data, eeg_ts = eeg_device.get_board_data()
                 if eeg_data.size > 0:
                     data_logging_queue.put(
@@ -442,79 +512,11 @@ def experiment_text(config: dict):
                         }
                     )
 
-                # Time until when to show grey screen (ISI).
-                t_isi_end = (
-                    t_stim_end_actual
-                    + isi_duration
-                    + np.random.uniform(low=0.0, high=isi_jitter)
-                )
-
-                if is_target_event:
-                    # If this is a target event, prolong the ISI duration, to allow the
-                    # subject to respond before the onset of the next stimulus, to
-                    # reduce the probability of a motor response artefact in the
-                    # subsequent trial.
-                    t_isi_end += isi_extension_target
-
-                # Continue checking for late responses or quit events.
-                while eeg_device.lsl_local_clock() < t_isi_end:
-                    for event in pygame.event.get():
-                        if event.type == pygame.QUIT:
-                            running = False
-                        if event.type == pygame.KEYDOWN:
-                            keydown_time = eeg_device.lsl_local_clock()
-                            if event.key == pygame.K_ESCAPE:
-                                running = False
-                            # Still check for spacebar presses that are within the
-                            # response window for target events.
-                            if event.key == pygame.K_SPACE and not response_made:
-                                if keydown_time < response_deadline:
-                                    response_made = True
-                                    response_time = keydown_time - t_stim_start
-                                    print(f"Response time: {round(response_time, 3)}")
-                                    if is_target_event:
-                                        # Hit.
-                                        n_hits += 1
-                                    else:
-                                        # False alarm.
-                                        n_false_alarms += 1
-                    if not running:
-                        break
-                if not running:
-                    break
-
-                stimulus_data = {
-                    "stimulus_start_time": t_stim_start,
-                    "stimulus_end_time": t_stim_end_actual,
-                    "stimulus_duration_s": t_stim_end_actual - t_stim_start,
-                    "word": word,
-                    "font_name": font_name,
-                    "font_size": font_size,
-                    "font_is_bold": font_is_bold,
-                    "font_is_italic": font_is_italic,
-                    "font_spacing": font_spacing,
-                    "font_color": font_color,
-                    "is_target_event": is_target_event,
-                    "response_time_s": response_time,
-                }
-                data_logging_queue.put(
-                    {"type": "stimulus", "stimulus_data": stimulus_data}
-                )
-
-                if not running:
-                    break
-
-                # Send post-stimulus EEG data (to avoid buffer overflow).
-                eeg_data, eeg_ts = eeg_device.get_board_data()
-                if eeg_data.size > 0:
-                    data_logging_queue.put(
-                        {"type": "eeg", "eeg_data": eeg_data, "eeg_timestamps": eeg_ts}
-                    )
-
-                stimulus_block_counter += 1
+                # ----------------------------------------------------------------------
+                # *** Inter-block interval
 
                 if stimulus_block_counter == stimuli_per_block:
-                    # Inter-block grey screen.
+                    # Inter-block interval (break).
                     screen.fill(text_config.rest_condition_color)
                     pygame.display.flip()
                     # Start of inter-block interval.
@@ -523,6 +525,39 @@ def experiment_text(config: dict):
                     if use_ibi_audio_cue:
                         # Audio cue to signal the beginning of the inter-block interval.
                         pure_tone_start.play()
+
+                    # ------------------------------------------------------------------
+                    # *** Log previous stimulus
+
+                    # The end time of the previous stimulus is the onset of the current
+                    # inter-block interval.
+                    t_stim_end_actual = t_ibi_start
+
+                    if device_type in ["cyton", "synthetic"]:
+                        eeg_device.insert_marker(text_config.stim_end_marker)
+                    else:
+                        data_logging_queue.put(
+                            {
+                                "type": "marker",
+                                "marker_value": text_config.stim_end_marker,
+                                "timestamp": t_stim_end_actual,
+                            }
+                        )
+
+                    stimulus_data["response_time_s"] = response_time
+                    stimulus_data["stimulus_end_time"] = t_stim_end_actual
+                    stimulus_data["stimulus_duration_s"] = (
+                        t_stim_end_actual - stimulus_data["stimulus_start_time"]
+                    )
+
+                    data_logging_queue.put(
+                        {"type": "stimulus", "stimulus_data": stimulus_data}
+                    )
+
+                    need_to_log_previous_stimulus = False
+
+                    # ------------------------------------------------------------------
+                    # *** Continue inter-block interval
 
                     # End of inter-block interval.
                     t_ibi_end = t_ibi_start + inter_block_rest_duration
@@ -558,6 +593,111 @@ def experiment_text(config: dict):
                                 "eeg_timestamps": eeg_ts,
                             }
                         )
+
+                    continue
+
+                # ----------------------------------------------------------------------
+                # *** ISI
+
+                # Compute the duration of the upcoming inter stimulus interval (ISI).
+                # ISI duration can be zero.
+                next_isi_duration = isi_duration
+                if is_target_event:
+                    # If this is a target event, prolong the ISI duration, to allow the
+                    # subject to respond before the onset of the next stimulus, to
+                    # reduce the probability of a motor response artefact in the
+                    # subsequent trial.
+                    next_isi_duration += isi_extension_target
+                if isi_jitter > 0.0:
+                    # Randomly sample ISI duration jitter for the current trial.
+                    isi_jitter_current_trial = np.random.uniform(
+                        low=0.0,
+                        high=isi_jitter,
+                    )
+                    next_isi_duration += isi_jitter_current_trial
+
+                # The ISI interval can be zero; in that case, do not include an ISI at
+                # all.
+                if next_isi_duration < 0.0167:
+                    # Skip ISI if ISI duration is less than one frame (assuming 60 Hz
+                    # refresh rate). The stimulus stays on screen for now.
+                    print("Skipping ISI")
+                    t_stim_end_actual = None  # No ISI, the stimulus is still shown
+                    continue
+
+                # End of stimulus presentation. Display ISI grey screen.
+                screen.fill(text_config.rest_condition_color)
+                pygame.display.flip()
+                t_stim_end_actual = eeg_device.lsl_local_clock()
+                # Time until when to show grey screen (ISI).
+                t_isi_end = t_stim_end_actual + next_isi_duration
+
+                # Continue checking for late responses or quit events.
+                while eeg_device.lsl_local_clock() < t_isi_end:
+                    for event in pygame.event.get():
+                        if event.type == pygame.QUIT:
+                            running = False
+                        if event.type == pygame.KEYDOWN:
+                            keydown_time = eeg_device.lsl_local_clock()
+                            if event.key == pygame.K_ESCAPE:
+                                running = False
+                            # Still check for spacebar presses that are within the
+                            # response window for target events.
+                            if event.key == pygame.K_SPACE and not response_made:
+                                if keydown_time < response_deadline:
+                                    response_made = True
+                                    response_time = keydown_time - t_stim_start
+                                    print(f"Response time: {round(response_time, 3)}")
+                                    if is_target_event:
+                                        # Hit.
+                                        n_hits += 1
+                                    else:
+                                        # False alarm.
+                                        n_false_alarms += 1
+                    if not running:
+                        break
+                if not running:
+                    break
+
+                # Send post-stimulus EEG data (to avoid buffer overflow).
+                eeg_data, eeg_ts = eeg_device.get_board_data()
+                if eeg_data.size > 0:
+                    data_logging_queue.put(
+                        {"type": "eeg", "eeg_data": eeg_data, "eeg_timestamps": eeg_ts}
+                    )
+
+            # --------------------------------------------------------------------------
+            # *** Log final stimulus data
+
+            if need_to_log_previous_stimulus:
+                if t_stim_end_actual is None:
+                    screen.fill(text_config.rest_condition_color)
+                    pygame.display.flip()
+                    t_stim_end_actual = eeg_device.lsl_local_clock()
+
+                if device_type in ["cyton", "synthetic"]:
+                    eeg_device.insert_marker(text_config.stim_end_marker)
+                else:
+                    data_logging_queue.put(
+                        {
+                            "type": "marker",
+                            "marker_value": text_config.stim_end_marker,
+                            "timestamp": t_stim_end_actual,
+                        }
+                    )
+
+                stimulus_data["response_time_s"] = response_time
+                stimulus_data["stimulus_end_time"] = t_stim_end_actual
+                stimulus_data["stimulus_duration_s"] = (
+                    t_stim_end_actual - stimulus_data["stimulus_start_time"]
+                )
+
+                data_logging_queue.put(
+                    {"type": "stimulus", "stimulus_data": stimulus_data}
+                )
+
+            # --------------------------------------------------------------------------
+            # *** Show behavioural results
 
             # End of word loop.
 
