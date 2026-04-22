@@ -190,6 +190,9 @@ def text_demo(config: dict):
                     high=stimulus_font_max_spacing,
                 )
 
+                # Clear previous stimulus.
+                screen.fill(text_config.rest_condition_color)
+
                 stimulus_text = render_spaced_text(
                     text=word,
                     font=font_data["font"],
