@@ -1,6 +1,6 @@
 """
-Data collection mode with text stimuli. Word repetitions are target events for attention
-task.
+Data collection mode with text stimuli. Multiple choice comprehension questions at the
+end of the run to ensure participant's attention.
 """
 
 import json
@@ -16,7 +16,7 @@ import pygame
 
 from nubrain.audio.tone import generate_tone
 from nubrain.device.device_interface import create_eeg_device
-from nubrain.experiment_text_targets.data import eeg_data_logging
+from nubrain.experiment_text_comprehension.data import eeg_data_logging
 from nubrain.experiment_text_targets.text_config import TextConfig
 from nubrain.misc.datetime import get_formatted_current_datetime
 from nubrain.text.rendering import construct_fonts, render_spaced_text
@@ -48,17 +48,14 @@ def experiment_text_targets(config: dict):
     initial_rest_duration = config["initial_rest_duration"]
     stimulus_duration = config["stimulus_duration"]
     stimulus_jitter = config["stimulus_jitter"]
-    stimulus_extension_target = config["stimulus_extension_target"]
     isi_duration = config["isi_duration"]
     isi_jitter = config["isi_jitter"]
-    isi_extension_target = config["isi_extension_target"]
     inter_block_rest_duration = config["inter_block_rest_duration"]
     n_chars_long_word_threshold = config["n_chars_long_word_threshold"]
     extra_duration_per_char = config["extra_duration_per_char"]
     max_extra_stimulus_duration = config["max_extra_stimulus_duration"]
 
     section_idx_start = config["section_idx_start"]
-    n_sections_to_show = config["n_sections_to_show"]
 
     stimuli_per_block = config["stimuli_per_block"]
     stimulus_font_sizes = config["stimulus_font_sizes"]
@@ -87,21 +84,28 @@ def experiment_text_targets(config: dict):
     with open(path_stimuli, "r", encoding="utf-8") as file:
         stimuli = json.load(file)
 
-    text_sections = stimuli["text_sections"]
-
     # Only used for logging.
-    min_distance_targets = stimuli["min_distance_targets"]
-    min_words_per_section = stimuli["min_words_per_section"]
-    ratio_target_events = stimuli["ratio_target_events"]
     words_per_section = stimuli["words_per_section"]
+    min_words_per_section = stimuli["min_words_per_section"]
+    n_answers = stimuli["n_answers"]
+    n_questions = stimuli["n_questions"]
 
-    # Select subset of text.
-    text_sections = text_sections[
-        section_idx_start : (section_idx_start + n_sections_to_show)
-    ]
+    stimuli = stimuli["stimulus_data"]
+    # `stimuli` is a list of dictionaries:
+    # stimuli = [{"text_section": "...", "questions_and_answers": "..."}, ...]
 
-    text = [x for xs in [x["text_with_targets"] for x in text_sections] for x in xs]
-    is_target = [x for xs in [x["is_target"] for x in text_sections] for x in xs]
+    # Select section for current run. In this condition (with comprehension questions)
+    # we show only one section per run.
+    stimuli = stimuli[section_idx_start]
+
+    text = stimuli["text_section"]
+    questions_and_answers = stimuli["questions_and_answers"]
+
+    # Split text into individual words.
+    text = text.split(" ")
+
+    # Remove empty strings.
+    text = [x for x in text if len(x) > 0]
 
     # ----------------------------------------------------------------------------------
     # *** Prepare EEG measurement
@@ -180,17 +184,13 @@ def experiment_text_targets(config: dict):
         "stimulus_duration": stimulus_duration,
         "isi_duration": isi_duration,
         "isi_jitter": isi_jitter,
-        "isi_extension_target": isi_extension_target,
         "inter_block_rest_duration": inter_block_rest_duration,
         "n_chars_long_word_threshold": n_chars_long_word_threshold,
         "extra_duration_per_char": extra_duration_per_char,
         "max_extra_stimulus_duration": max_extra_stimulus_duration,
         # Experiment structure
         "section_idx_start": section_idx_start,
-        "n_sections_to_show": n_sections_to_show,
-        "min_distance_targets": min_distance_targets,
         "min_words_per_section": min_words_per_section,
-        "ratio_target_events": ratio_target_events,
         "words_per_section": words_per_section,
         "stimuli_per_block": stimuli_per_block,
         "stimulus_font_sizes": stimulus_font_sizes,
@@ -215,11 +215,6 @@ def experiment_text_targets(config: dict):
 
     # ----------------------------------------------------------------------------------
     # *** Start experiment
-
-    # Performance counters.
-    n_hits = 0
-    n_false_alarms = 0
-    n_total_targets = sum(is_target)
 
     running = True
     while running:
@@ -319,7 +314,7 @@ def experiment_text_targets(config: dict):
             need_to_log_previous_stimulus = False
 
             # Loop through words.
-            for word, is_target_event in zip(text, is_target):
+            for word in text:
                 if not running:  # Check for quit event
                     break
 
@@ -402,7 +397,6 @@ def experiment_text_targets(config: dict):
                             }
                         )
 
-                    stimulus_data["response_time_s"] = response_time
                     stimulus_data["stimulus_end_time"] = t_stim_end_actual
                     stimulus_data["stimulus_duration_s"] = (
                         t_stim_end_actual - stimulus_data["stimulus_start_time"]
@@ -440,28 +434,13 @@ def experiment_text_targets(config: dict):
                 else:
                     stimulus_jitter_current_trial = 0.0
 
-                response_made = False
-                response_time = np.nan
-                response_deadline = (
-                    t_stim_start  # Stimulus start time
-                    + stimulus_duration  # Regular stimulus duration
-                    + extra_stimulus_duration  # Extra stimulus duration for long words
-                    + stimulus_extension_target  # Extra stimulus duration for targets
-                    + stimulus_jitter_current_trial  # Random stimulus duration jitter
-                    + isi_duration  # Inter stimulus interval (can be zero)
-                    + isi_extension_target  # Extra ISI for targets (can be zero)
-                )
-
-                # Wait for stimulus duration, but check for responses continuously.
+                # Wait for stimulus duration.
                 t_stim_end_expected = (
                     t_stim_start  # Stimulus start time
                     + stimulus_duration  # Regular stimulus duration
                     + extra_stimulus_duration  # Extra stimulus duration for long words
                     + stimulus_jitter_current_trial  # Random stimulus duration jitter
                 )
-                if is_target_event:
-                    # Extra stimulus duration for targets.
-                    t_stim_end_expected += stimulus_extension_target
 
                 # The data from the current stimulus will be logged *after* flipping the
                 # screen for the next stimulus. Keep a deepcopy so as to log the
@@ -476,7 +455,6 @@ def experiment_text_targets(config: dict):
                         "font_is_italic": font_is_italic,
                         "font_spacing": font_spacing,
                         "font_color": font_color,
-                        "is_target_event": is_target_event,
                     }
                 )
                 need_to_log_previous_stimulus = True
@@ -489,21 +467,8 @@ def experiment_text_targets(config: dict):
                         if event.type == pygame.QUIT:
                             running = False
                         if event.type == pygame.KEYDOWN:
-                            keydown_time = eeg_device.lsl_local_clock()
                             if event.key == pygame.K_ESCAPE:
                                 running = False
-                            # Check for space bar press within the response window.
-                            if event.key == pygame.K_SPACE and not response_made:
-                                if keydown_time < response_deadline:
-                                    response_made = True
-                                    response_time = keydown_time - t_stim_start
-                                    print(f"Response time: {round(response_time, 3)}")
-                                    if is_target_event:
-                                        # Hit.
-                                        n_hits += 1
-                                    else:
-                                        # False alarm.
-                                        n_false_alarms += 1
                     if not running:
                         break
                 if not running:
@@ -552,7 +517,6 @@ def experiment_text_targets(config: dict):
                             }
                         )
 
-                    stimulus_data["response_time_s"] = response_time
                     stimulus_data["stimulus_end_time"] = t_stim_end_actual
                     stimulus_data["stimulus_duration_s"] = (
                         t_stim_end_actual - stimulus_data["stimulus_start_time"]
@@ -610,12 +574,6 @@ def experiment_text_targets(config: dict):
                 # Compute the duration of the upcoming inter stimulus interval (ISI).
                 # ISI duration can be zero.
                 next_isi_duration = isi_duration
-                if is_target_event:
-                    # If this is a target event, prolong the ISI duration, to allow the
-                    # subject to respond before the onset of the next stimulus, to
-                    # reduce the probability of a motor response artefact in the
-                    # subsequent trial.
-                    next_isi_duration += isi_extension_target
                 if isi_jitter > 0.0:
                     # Randomly sample ISI duration jitter for the current trial.
                     isi_jitter_current_trial = np.random.uniform(
@@ -640,28 +598,14 @@ def experiment_text_targets(config: dict):
                 # Time until when to show grey screen (ISI).
                 t_isi_end = t_stim_end_actual + next_isi_duration
 
-                # Continue checking for late responses or quit events.
+                # Continue checking for quit events.
                 while eeg_device.lsl_local_clock() < t_isi_end:
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                             running = False
                         if event.type == pygame.KEYDOWN:
-                            keydown_time = eeg_device.lsl_local_clock()
                             if event.key == pygame.K_ESCAPE:
                                 running = False
-                            # Still check for spacebar presses that are within the
-                            # response window for target events.
-                            if event.key == pygame.K_SPACE and not response_made:
-                                if keydown_time < response_deadline:
-                                    response_made = True
-                                    response_time = keydown_time - t_stim_start
-                                    print(f"Response time: {round(response_time, 3)}")
-                                    if is_target_event:
-                                        # Hit.
-                                        n_hits += 1
-                                    else:
-                                        # False alarm.
-                                        n_false_alarms += 1
                     if not running:
                         break
                 if not running:
@@ -694,7 +638,6 @@ def experiment_text_targets(config: dict):
                         }
                     )
 
-                stimulus_data["response_time_s"] = response_time
                 stimulus_data["stimulus_end_time"] = t_stim_end_actual
                 stimulus_data["stimulus_duration_s"] = (
                     t_stim_end_actual - stimulus_data["stimulus_start_time"]
@@ -705,75 +648,22 @@ def experiment_text_targets(config: dict):
                 )
 
             # --------------------------------------------------------------------------
-            # *** Show behavioural results
+            # *** Show multiple choice questions
 
-            # End of word loop.
+            # TODO Show multiple choice questions and have participant answer the question
+            raise NotImplementerError()
 
-            # Calculate behavioural results.
-            n_misses = n_total_targets - n_hits
+            # ...
 
             # Write behavioural results to hdf5 file.
             behavioural_data = {
-                "n_total_targets": n_total_targets,
-                "n_hits": n_hits,
-                "n_misses": n_misses,
-                "n_false_alarms": n_false_alarms,
+                "n_questions": n_questions,
+                "n_answers": n_answers,
+                "n_correct_answers": n_correct_answers,
             }
             data_logging_queue.put(
                 {"type": "behavioural", "behavioural_data": behavioural_data}
             )
-
-            if running:
-                # Display behavioural results.
-                screen.fill(text_config.rest_condition_color)
-
-                # Behavioural results title.
-                title_font = pygame.font.Font(None, 72)
-                title_text = title_font.render(
-                    "Experiment Complete",
-                    True,
-                    text_config.font_colors[0],
-                )
-                title_rect = title_text.get_rect(
-                    center=(screen_width // 2, screen_height // 2 - 150)
-                )
-                screen.blit(title_text, title_rect)
-
-                # Behavioural results text.
-                results_font = pygame.font.Font(None, 56)
-                hits_text = results_font.render(
-                    f"Hits: {n_hits}",
-                    True,
-                    text_config.font_colors[0],
-                )
-                misses_text = results_font.render(
-                    f"Misses: {n_misses}",
-                    True,
-                    text_config.font_colors[0],
-                )
-                false_alarms_text = results_font.render(
-                    f"False Alarms: {n_false_alarms}",
-                    True,
-                    text_config.font_colors[0],
-                )
-
-                # Position and display results
-                hits_rect = hits_text.get_rect(
-                    center=(screen_width // 2, screen_height // 2 - 20)
-                )
-                misses_rect = misses_text.get_rect(
-                    center=(screen_width // 2, screen_height // 2 + 40)
-                )
-                false_alarms_rect = false_alarms_text.get_rect(
-                    center=(screen_width // 2, screen_height // 2 + 100)
-                )
-
-                screen.blit(hits_text, hits_rect)
-                screen.blit(misses_text, misses_rect)
-                screen.blit(false_alarms_text, false_alarms_rect)
-
-                pygame.display.flip()
-                pygame.time.wait(5000)  # Show results for 5 seconds
 
             running = False
 

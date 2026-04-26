@@ -1,0 +1,364 @@
+import json
+import os
+from time import time
+
+import h5py
+import numpy as np
+
+from nubrain.experiment_text_comprehension.text_config import TextConfig
+from nubrain.storage.gcloud_bucket_upload import upload_to_gcs
+
+text_config = TextConfig()
+
+
+def eeg_data_logging(subprocess_params: dict):
+    """
+    Log experimental data.
+
+    Continuously save to local hdf file. Upload to google cloud storage bucket at the
+    end of the run. To be run in separate process (using multiprocessing).
+
+    Please note that the stimulus onset and offset timestamps (`stimulus_start_time` and
+    `stimulus_end_time`) use the LSL local clock, which is in seconds, but not aligned
+    with UNIX epoch. We use the LSL clock for consistency with EEG timestamps from the
+    DSI-24 device. Only the `experiment_start_time` is in UNIX epoch.
+    """
+    # ----------------------------------------------------------------------------------
+    # *** Get parameters
+
+    device_type = subprocess_params["device_type"]
+
+    path_stimuli = subprocess_params["path_stimuli"]
+
+    subject_id = subprocess_params["subject_id"]
+    session_id = subprocess_params["session_id"]
+
+    # EEG parameters
+    eeg_board_description = subprocess_params["eeg_board_description"]
+    eeg_sampling_rate = subprocess_params["eeg_sampling_rate"]
+    n_channels_total = subprocess_params["n_channels_total"]
+    eeg_channels = subprocess_params["eeg_channels"]
+    marker_channel = subprocess_params["marker_channel"]
+    eeg_channel_mapping = subprocess_params["eeg_channel_mapping"]
+    eeg_device_address = subprocess_params["eeg_device_address"]
+
+    # Timing parameters
+    initial_rest_duration = subprocess_params["initial_rest_duration"]
+    stimulus_duration = subprocess_params["stimulus_duration"]
+    isi_duration = subprocess_params["isi_duration"]
+    isi_jitter = subprocess_params["isi_jitter"]
+
+    inter_block_rest_duration = subprocess_params["inter_block_rest_duration"]
+    n_chars_long_word_threshold = subprocess_params["n_chars_long_word_threshold"]
+    extra_duration_per_char = subprocess_params["extra_duration_per_char"]
+    max_extra_stimulus_duration = subprocess_params["max_extra_stimulus_duration"]
+
+    # Experiment structure
+    section_idx_start = subprocess_params["section_idx_start"]
+    stimuli_per_block = subprocess_params["stimuli_per_block"]
+    stimulus_font_sizes = subprocess_params["stimulus_font_sizes"]
+    stimulus_font_min_spacing = subprocess_params["stimulus_font_min_spacing"]
+    stimulus_font_max_spacing = subprocess_params["stimulus_font_max_spacing"]
+
+    # Text and targets
+    text = subprocess_params["text"]  # List of str
+
+    # TODO QUESTIONS
+
+    # Storage
+    path_out_data = subprocess_params["path_out_data"]
+    storage_bucket_name = subprocess_params["storage_bucket_name"]
+    storage_blob_name = subprocess_params["storage_blob_name"]
+    storage_bucket_credentials = subprocess_params["storage_bucket_credentials"]
+
+    # Misc
+    utility_frequency = subprocess_params["utility_frequency"]
+    data_logging_queue = subprocess_params["data_logging_queue"]
+
+    # ----------------------------------------------------------------------------------
+    # *** Create and initialize HDF5 file
+
+    experiment_metadata = {
+        "config_version": text_config.config_version,
+        "device_type": device_type,
+        "subject_id": subject_id,
+        "session_id": session_id,
+        "path_stimuli": path_stimuli,
+        "rest_condition_color": text_config.rest_condition_color,
+        "stim_start_marker": text_config.stim_start_marker,
+        "stim_end_marker": text_config.stim_end_marker,
+        "hdf5_dtype": text_config.hdf5_dtype,
+        "experiment_start_time": time(),  # Epoch timestamp
+        # EEG parameters
+        "eeg_board_description": eeg_board_description,
+        "eeg_sampling_rate": eeg_sampling_rate,
+        "n_channels_total": n_channels_total,
+        "eeg_channel_mapping": eeg_channel_mapping,
+        # Timing parameters
+        "initial_rest_duration": initial_rest_duration,
+        "stimulus_duration": stimulus_duration,
+        "isi_duration": isi_duration,
+        "isi_jitter": isi_jitter,
+        "inter_block_rest_duration": inter_block_rest_duration,
+        "n_chars_long_word_threshold": n_chars_long_word_threshold,
+        "extra_duration_per_char": extra_duration_per_char,
+        "max_extra_stimulus_duration": max_extra_stimulus_duration,
+        # Experiment structure
+        "section_idx_start": section_idx_start,
+        "stimuli_per_block": stimuli_per_block,
+        "stimulus_font_sizes": stimulus_font_sizes,
+        "stimulus_font_min_spacing": stimulus_font_min_spacing,
+        "stimulus_font_max_spacing": stimulus_font_max_spacing,
+        # Text and targets
+        "text": text,  # List of str
+
+        raise AssertionError
+        # TODO: QUESTIONS
+
+        # Misc
+        "utility_frequency": utility_frequency,
+    }
+
+    # Parameters not used by DSI-24, for compatibility with Cyton board.
+    if eeg_device_address is not None:
+        experiment_metadata["eeg_device_address"] = eeg_device_address
+    if eeg_channels is not None:
+        experiment_metadata["eeg_channels"] = eeg_channels
+    if marker_channel is not None:
+        experiment_metadata["marker_channel"] = marker_channel
+
+    print(f"Initializing HDF5 file at: {path_out_data}")
+    with h5py.File(path_out_data, "w") as file:
+        # ------------------------------------------------------------------------------
+        # *** Initialize hdf5 dataset for metadata
+
+        # Create group for metadata.
+        metadata_group = file.create_group("metadata")
+
+        # Iterate over the Python dictionary and save each item as an attribute of the
+        # "metadata" group.
+        for key, value in experiment_metadata.items():
+            # HDF5 attributes have limitations on data types. Complex types like
+            # dictionaries or tuples are not natively supported. We check if the value
+            # is a type that needs to be converted to a string. JSON is a convenient
+            # format for this serialization.
+            if isinstance(value, (dict, list, tuple)):
+                # Serialize the complex type into a JSON string.
+                metadata_group.attrs[key] = json.dumps(value)
+            else:
+                metadata_group.attrs[key] = value
+
+        # ------------------------------------------------------------------------------
+        # *** Initialize hdf5 dataset for EEG data
+
+        # Initialize dataset for EEG and additional channels. To handle a variable
+        # number of timesteps, create a resizable dataset. We specify an initial shape
+        # but set the 'maxshape' to allow one of the dimensions to be unlimited (by
+        # setting it to None). 'chunks=True' is recommended for resizable datasets for
+        # better performance. It lets h5py decide the chunk size.
+
+        file.create_dataset(
+            "eeg_data",
+            shape=(n_channels_total, 0),
+            maxshape=(n_channels_total, None),  # fixed_channels, unlimited_timesteps
+            dtype=text_config.hdf5_dtype,
+            chunks=True,
+        )
+
+        file.create_dataset(
+            "eeg_timestamps",
+            shape=(0,),
+            maxshape=(None,),
+            dtype="float64",
+            chunks=True,
+        )
+
+        file.create_dataset(
+            "marker_data",
+            shape=(2, 0),  # timestamp, marker value
+            maxshape=(2, None),
+            dtype="float64",
+            chunks=True,
+        )
+
+        # ------------------------------------------------------------------------------
+        # *** Initialize hdf5 dataset for stimulus data
+
+        # Define the compound datatype for stimulus data. This is like defining the
+        # columns of a table.
+        stimulus_dtype = np.dtype(
+            [
+                ("stimulus_start_time", np.float64),
+                ("stimulus_end_time", np.float64),
+                ("stimulus_duration_s", np.float64),
+                ("word", h5py.string_dtype(encoding="utf-8")),
+                ("font_name", h5py.string_dtype(encoding="utf-8")),
+                ("font_size", np.int64),
+                ("font_is_bold", np.bool),
+                ("font_is_italic", np.bool),
+                ("font_color_r", np.uint8),
+                ("font_color_g", np.uint8),
+                ("font_color_b", np.uint8),
+                ("font_spacing", np.float64),
+
+
+            ]
+        )
+
+        file.create_dataset(
+            "stimulus_data",
+            (len(text),),
+            dtype=stimulus_dtype,
+        )
+
+        # ------------------------------------------------------------------------------
+        # *** Initialize hdf5 dataset for behavioural data
+
+        behavioural_dtype = np.dtype(
+            [
+                ("n_questions", np.int64),
+                ("n_answers", np.int64),
+                ("n_correct_answers", np.int64),
+
+            ]
+        )
+
+        file.create_dataset(
+            "behavioural_data",
+            (1,),
+            dtype=behavioural_dtype,
+        )
+
+    # ----------------------------------------------------------------------------------
+    # *** Experiment loop
+
+    stimulus_counter = 0
+
+    while True:
+        new_data = data_logging_queue.get(block=True)
+
+        if new_data is None:
+            # Received None. End process.
+            print("Ending preprocessing & data saving process.")
+            break
+
+        data_type = new_data["type"]
+
+        with h5py.File(path_out_data, "a") as file:
+            # --------------------------------------------------------------------------
+            # *** Write EEG data to hdf5 file
+
+            if data_type == "eeg":
+                new_eeg_data = new_data.get("eeg_data")
+                new_timestamps = new_data.get("eeg_timestamps")
+
+                if new_eeg_data is not None and new_eeg_data.size > 0:
+                    # Write EEG data.
+                    hdf5_eeg_data = file["eeg_data"]
+                    n_existing = hdf5_eeg_data.shape[1]
+                    n_new = new_eeg_data.shape[1]
+                    hdf5_eeg_data.resize(n_existing + n_new, axis=1)
+                    hdf5_eeg_data[:, n_existing:] = new_eeg_data
+
+                    # Write EEG timestamps.
+                    hdf5_timestamps = file["eeg_timestamps"]
+                    n_existing_ts = hdf5_timestamps.shape[0]
+                    hdf5_timestamps.resize(n_existing_ts + n_new, axis=0)
+                    hdf5_timestamps[n_existing_ts:] = new_timestamps
+
+            # --------------------------------------------------------------------------
+            # *** Write stimulus markers to hdf5 file
+
+            elif data_type == "marker":
+                marker_value = new_data.get("marker_value")
+                marker_timestamp = new_data.get("timestamp")
+
+                if marker_value is not None:
+                    hdf5_marker_data = file["marker_data"]
+                    n_existing = hdf5_marker_data.shape[1]
+                    hdf5_marker_data.resize(n_existing + 1, axis=1)
+                    hdf5_marker_data[:, n_existing] = (marker_timestamp, marker_value)
+
+            # --------------------------------------------------------------------------
+            # *** Write stimulus data to hdf5 file
+
+            elif data_type == "stimulus":
+                new_stimulus_data = new_data.get("stimulus_data")
+
+                if new_stimulus_data is not None:
+                    hdf5_stimulus_data = file["stimulus_data"]
+
+                    stimulus_start_time = new_stimulus_data["stimulus_start_time"]
+                    stimulus_end_time = new_stimulus_data["stimulus_end_time"]
+                    stimulus_duration_s = new_stimulus_data["stimulus_duration_s"]
+
+                    word = new_stimulus_data["word"]
+                    font_name = new_stimulus_data["font_name"]
+                    font_size = new_stimulus_data["font_size"]
+                    font_is_bold = new_stimulus_data["font_is_bold"]
+                    font_is_italic = new_stimulus_data["font_is_italic"]
+                    font_color = new_stimulus_data["font_color"]
+                    font_spacing = new_stimulus_data["font_spacing"]
+
+                    data_to_write = np.empty((1,), dtype=stimulus_dtype)
+
+                    data_to_write[0]["stimulus_start_time"] = stimulus_start_time
+                    data_to_write[0]["stimulus_end_time"] = stimulus_end_time
+                    data_to_write[0]["stimulus_duration_s"] = stimulus_duration_s
+
+                    data_to_write[0]["word"] = word
+                    data_to_write[0]["font_name"] = font_name
+                    data_to_write[0]["font_size"] = font_size
+                    data_to_write[0]["font_is_bold"] = font_is_bold
+                    data_to_write[0]["font_is_italic"] = font_is_italic
+                    data_to_write[0]["font_color_r"] = font_color[0]
+                    data_to_write[0]["font_color_g"] = font_color[1]
+                    data_to_write[0]["font_color_b"] = font_color[2]
+
+                    data_to_write[0]["font_spacing"] = font_spacing
+
+                    # Write the structured array to the dataset.
+                    hdf5_stimulus_data[stimulus_counter] = data_to_write
+
+                    stimulus_counter += 1
+
+            # --------------------------------------------------------------------------
+            # *** Write behavioural data to hdf5 file
+
+            elif data_type == "behavioural":
+                new_behavioural_data = new_data.get("behavioural_data")
+
+                if new_behavioural_data is not None:
+                    hdf5_behavioural_data = file["behavioural_data"]
+
+                    n_questions = new_behavioural_data["n_questions"]
+                    n_answers = new_behavioural_data["n_answers"]
+                    n_correct_answers = new_behavioural_data["n_correct_answers"]
+
+                    data_to_write = np.empty((1,), dtype=behavioural_dtype)
+                    data_to_write[0]["n_questions"] = n_questions
+                    data_to_write[0]["n_answers"] = n_answers
+                    data_to_write[0]["n_correct_answers"] = n_correct_answers
+
+
+                    # Write the structured array to the dataset.
+                    hdf5_behavioural_data[0] = data_to_write
+
+    # ----------------------------------------------------------------------------------
+    # *** Upload to cloud storage
+
+    # Upload hdf5 file to google cloud storage bucket at the end of the run.
+
+    filename = os.path.split(path_out_data)[-1]
+
+    _storage_blob_name = storage_blob_name.format(
+        device_type=device_type,
+        filename=filename,
+    )
+
+    upload_to_gcs(
+        local_file_path=path_out_data,
+        bucket_name=storage_bucket_name,
+        destination_blob_name=_storage_blob_name,
+        credentials_file_path=storage_bucket_credentials,
+    )
