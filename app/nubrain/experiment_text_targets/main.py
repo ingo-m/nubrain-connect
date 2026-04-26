@@ -11,15 +11,15 @@ import pygame
 
 from nubrain.audio.tone import generate_tone
 from nubrain.device.device_interface import create_eeg_device
-from nubrain.experiment_text.data import eeg_data_logging
-from nubrain.experiment_text.text_config import TextConfig
+from nubrain.experiment_text_targets.data import eeg_data_logging
+from nubrain.experiment_text_targets.text_config import TextConfig
 from nubrain.misc.datetime import get_formatted_current_datetime
 from nubrain.text.rendering import construct_fonts, render_spaced_text
 
 mp.set_start_method("spawn", force=True)  # Necessary on if running on windows?
 
 
-def experiment_text(config: dict):
+def experiment_text_targets(config: dict):
     # ----------------------------------------------------------------------------------
     # *** Get config
 

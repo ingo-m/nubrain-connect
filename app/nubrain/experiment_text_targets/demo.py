@@ -13,11 +13,11 @@ import numpy as np
 import pygame
 
 from nubrain.audio.tone import generate_tone
-from nubrain.experiment_text.text_config import TextConfig
+from nubrain.experiment_text_targets.text_config import TextConfig
 from nubrain.text.rendering import construct_fonts, render_spaced_text
 
 
-def text_demo(config: dict):
+def text_demo_targets(config: dict):
     # ----------------------------------------------------------------------------------
     # *** Get config
 

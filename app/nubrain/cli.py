@@ -2,10 +2,12 @@ import argparse
 import os
 
 from nubrain.experiment_image.load_config import load_config_image_yaml
-from nubrain.experiment_text.demo import text_demo
-from nubrain.experiment_text.gui import SessionConfigEditor
-from nubrain.experiment_text.load_experiment_config import load_config_text_yaml
-from nubrain.experiment_text.map_config import map_session_config_to_experiment_config
+from nubrain.experiment_text_targets.demo import text_demo_targets
+from nubrain.experiment_text_targets.gui import SessionConfigEditor
+from nubrain.experiment_text_targets.load_experiment_config import load_config_text_yaml
+from nubrain.experiment_text_targets.map_config import (
+    map_session_config_to_experiment_config,
+)
 
 # Wrap these imports in try, so that the other modules can be imported without
 # dependency on pylsl for demo mode.
@@ -18,10 +20,10 @@ try:
         experiment_eeg_to_image_v1_autoregressive,
     )
     from nubrain.experiment_image.main import experiment_image
-    from nubrain.experiment_text.main import experiment_text
+    from nubrain.experiment_text_targets.main import experiment_text_targets
 except Exception as e:
     experiment_image = None
-    experiment_text = None
+    experiment_text_targets = None
     load_config_yaml_eeg_to_image_v1 = None
     experiment_eeg_to_image_v1 = None
     experiment_eeg_to_image_v1_autoregressive = None
@@ -46,8 +48,17 @@ def main():
 
     # Which experimental mode to use. Options:
     # - "data_collection_image": Data collection mode for image stimuli.
-    # - "demo_text":  Demo mode with text stimuli for instructing participants.
-    # - "data_collection_text":  Data collection mode for text stimuli.
+    # - "demo_text_targets":  Demo mode (without EEG device) with text stimuli. Word
+    #    repetitions as target events for attention task.
+    # - "data_collection_text_targets":  Data collection mode for text stimuli with
+    #   word repetitions as target events for attention task.
+
+    # TODO
+    # - "demo_text_comprehension":  Demo mode (without EEG device) with text stimuli.
+    #   Comprehension questions at the end of the run.
+    # - "data_collection_text_comprehension":  Data collection mode for text stimuli
+    #   with comprehension questions at the end of the run.
+
     # - "eeg_to_image":  After presenting each image, directly reconstruct the image,
     #   then show the next image.
     # - "eeg_to_image_autoregressive": After presenting an image, directly reconstruct
@@ -56,7 +67,7 @@ def main():
     parser.add_argument(
         "--mode",
         type=str,
-        default="data_collection_text",
+        default="data_collection_text_targets",
         help="Which experimental mode to use",
     )
 
@@ -73,7 +84,7 @@ def main():
     if mode == "data_collection_image":
         # Data collection mode, image stimuli.
         config = load_config_image_yaml(yaml_file_path=input_file_path)
-    elif mode in ["demo_text", "data_collection_text"]:
+    elif mode in ["demo_text_targets", "data_collection_text_targets"]:
         # Data collection mode, text stimuli.
         config = load_config_text_yaml(yaml_file_path=input_file_path)
     elif mode in ["eeg_to_image", "eeg_to_image_autoregressive"]:
@@ -88,11 +99,11 @@ def main():
     # Run experiment.
     if mode == "data_collection_image":
         experiment_image(config=config)
-    elif mode in ["demo_text", "data_collection_text"]:
+    elif mode in ["demo_text_targets", "data_collection_text_targets"]:
         # Show GUI for user to update session parameters (subject ID, next run).
         session_config_path = os.path.join(
             os.path.dirname(__file__),
-            "experiment_text",
+            "experiment_text_targets",
             "session_config.yaml",
         )
         gui = SessionConfigEditor(session_config_path=session_config_path)
@@ -106,10 +117,10 @@ def main():
             session_config=session_config,
             experiment_config=config,
         )
-        if mode == "data_collection_text":
-            experiment_text(config=config)
-        elif mode == "demo_text":
-            text_demo(config=config)
+        if mode == "data_collection_text_targets":
+            experiment_text_targets(config=config)
+        elif mode == "demo_text_targets":
+            text_demo_targets(config=config)
         else:
             raise AssertionError
     elif mode == "eeg_to_image":
