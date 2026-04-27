@@ -1,4 +1,4 @@
-def map_session_config_to_experiment_config(
+def map_session_config_target_condition(
     *,
     session_config: dict,
     experiment_config: dict,

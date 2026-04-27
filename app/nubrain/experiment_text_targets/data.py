@@ -5,7 +5,7 @@ from time import time
 import h5py
 import numpy as np
 
-from nubrain.experiment_text.text_config import TextConfig
+from nubrain.experiment_text_targets.text_config import TextConfig
 from nubrain.storage.gcloud_bucket_upload import upload_to_gcs
 
 text_config = TextConfig()

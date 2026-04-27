@@ -15,6 +15,10 @@ def exclude_invalid_chars(*, text: str):
     text = text.replace("_", " ")
     text = text.replace(b"\xe3\x80\x80".decode("utf8"), " ")
 
+    # Recursively replace double spaces.
+    for _ in range(8):
+        text = text.replace("  ", " ")
+
     punctuation_chars = PunctuationChars().allowed
 
     alphanumeric_chars_allowed = set(

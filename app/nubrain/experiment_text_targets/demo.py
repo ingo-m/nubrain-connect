@@ -1,44 +1,30 @@
+"""
+Demo mode for instructing participants. Does not use EEG device, only presents a short
+series of text stimuli (i.e. words).
+"""
+
 import json
-import multiprocessing as mp
-import os
 import random
 import traceback
 from copy import deepcopy
-from time import sleep
+from time import time
 
 import numpy as np
 import pygame
 
 from nubrain.audio.tone import generate_tone
-from nubrain.device.device_interface import create_eeg_device
-from nubrain.experiment_text.data import eeg_data_logging
-from nubrain.experiment_text.text_config import TextConfig
-from nubrain.misc.datetime import get_formatted_current_datetime
+from nubrain.experiment_text_targets.text_config import TextConfig
 from nubrain.text.rendering import construct_fonts, render_spaced_text
 
-mp.set_start_method("spawn", force=True)  # Necessary on if running on windows?
 
-
-def experiment_text(config: dict):
+def text_demo_targets(config: dict):
     # ----------------------------------------------------------------------------------
     # *** Get config
-
-    device_type = config["device_type"]
-    lsl_stream_name = config.get("lsl_stream_name", "DSI-24")
 
     subject_id = config["subject_id"]
     session_id = config["session_id"]
 
-    output_directory = config["output_directory"]
     path_stimuli = config["path_stimuli"]
-
-    storage_bucket_name = config["storage_bucket_name"]
-    storage_blob_name = config["storage_blob_name"]
-    storage_bucket_credentials = config["storage_bucket_credentials"]
-
-    eeg_channel_mapping = config.get("eeg_channel_mapping", None)
-
-    utility_frequency = config["utility_frequency"]
 
     initial_rest_duration = config["initial_rest_duration"]
     stimulus_duration = config["stimulus_duration"]
@@ -60,21 +46,7 @@ def experiment_text(config: dict):
     stimulus_font_min_spacing = config["stimulus_font_min_spacing"]
     stimulus_font_max_spacing = config["stimulus_font_max_spacing"]
 
-    eeg_device_address = config.get("eeg_device_address", None)
-
     text_config = TextConfig()
-
-    # ----------------------------------------------------------------------------------
-    # *** Test if output path exists
-
-    if not os.path.isdir(output_directory):
-        raise AssertionError(f"Target directory does not exist: {output_directory}")
-
-    current_datetime = get_formatted_current_datetime()
-    path_out_data = os.path.join(output_directory, f"eeg_{current_datetime}.h5")
-
-    if os.path.isfile(path_out_data):
-        raise AssertionError(f"Target file already exists: {path_out_data}")
 
     # ----------------------------------------------------------------------------------
     # *** Load stimulus data from JSON file
@@ -84,12 +56,6 @@ def experiment_text(config: dict):
 
     text_sections = stimuli["text_sections"]
 
-    # Only used for logging.
-    min_distance_targets = stimuli["min_distance_targets"]
-    min_words_per_section = stimuli["min_words_per_section"]
-    ratio_target_events = stimuli["ratio_target_events"]
-    words_per_section = stimuli["words_per_section"]
-
     # Select subset of text.
     text_sections = text_sections[
         section_idx_start : (section_idx_start + n_sections_to_show)
@@ -97,116 +63,6 @@ def experiment_text(config: dict):
 
     text = [x for xs in [x["text_with_targets"] for x in text_sections] for x in xs]
     is_target = [x for xs in [x["is_target"] for x in text_sections] for x in xs]
-
-    # ----------------------------------------------------------------------------------
-    # *** Prepare EEG measurement
-
-    print(f"Initializing EEG device: {device_type}")
-
-    device_kwargs = {"eeg_channel_mapping": eeg_channel_mapping}
-    if device_type in ["cyton", "synthetic"]:
-        device_kwargs["eeg_device_address"] = eeg_device_address
-    elif device_type == "dsi24":
-        device_kwargs["lsl_stream_name"] = lsl_stream_name
-    else:
-        raise ValueError(f"Unexpected `device_type`: {device_type}")
-
-    eeg_device = create_eeg_device(device_type, **device_kwargs)
-
-    eeg_device.prepare_session()
-
-    # This is a bit clunky. At this point, `eeg_channel_mapping` is None or a dict with
-    # a channel mapping from the config yaml file. Overwrite it with the channel mapping
-    # from the device (in case of the DSI-24 device, the channel mapping from the device
-    # is used in any case).
-    eeg_channel_mapping = eeg_device.eeg_channel_mapping
-
-    # Need to start the stream before calling `eeg_device.get_device_info()`, because
-    # we retrieve data from board to determine data shape (number of channels).
-    eeg_device.start_stream()
-    sleep(0.1)
-
-    # Get device info.
-    device_info = eeg_device.get_device_info()
-    eeg_board_description = device_info["board_description"]
-    eeg_sampling_rate = device_info["sampling_rate"]
-    eeg_channels = device_info["eeg_channels"]
-    marker_channel = device_info["marker_channel"]
-    n_channels_total = device_info["n_channels_total"]
-
-    if device_type in ["cyton", "synthetic"]:
-        # For Cyton device, we need to get the number of EEG channels from the device
-        # (not sure, this might only work after starting the stream).
-        eeg_device.eeg_channels = eeg_channels
-        eeg_device.timestamp_channel = eeg_board_description["timestamp_channel"]
-
-    print(f"Board: {eeg_board_description['name']}")
-    print(f"Sampling Rate: {eeg_sampling_rate} Hz")
-    print(f"EEG Channels: {eeg_channels}")
-    print(f"Marker Channel: {marker_channel}")
-    print(f"EEG Channel Mapping: {eeg_channel_mapping}")
-
-    board_data, board_timestamps = eeg_device.get_board_data()
-
-    print(f"Board data dtype: {board_data.dtype}")
-    print(f"Board data shape: {board_data.shape}")
-    print(f"Board timestamps shape: {board_timestamps.shape}")
-
-    # ----------------------------------------------------------------------------------
-    # *** Start data logging subprocess
-
-    data_logging_queue = mp.Queue()
-
-    subprocess_params = {
-        "device_type": device_type,
-        "subject_id": subject_id,
-        "session_id": session_id,
-        "path_stimuli": path_stimuli,
-        # EEG parameters
-        "eeg_board_description": eeg_board_description,
-        "eeg_sampling_rate": eeg_sampling_rate,
-        "n_channels_total": n_channels_total,
-        "eeg_channels": eeg_channels,
-        "marker_channel": marker_channel,
-        "eeg_channel_mapping": eeg_channel_mapping,
-        "eeg_device_address": eeg_device_address,
-        # Timing parameters
-        "initial_rest_duration": initial_rest_duration,
-        "stimulus_duration": stimulus_duration,
-        "isi_duration": isi_duration,
-        "isi_jitter": isi_jitter,
-        "isi_extension_target": isi_extension_target,
-        "inter_block_rest_duration": inter_block_rest_duration,
-        "n_chars_long_word_threshold": n_chars_long_word_threshold,
-        "extra_duration_per_char": extra_duration_per_char,
-        "max_extra_stimulus_duration": max_extra_stimulus_duration,
-        # Experiment structure
-        "section_idx_start": section_idx_start,
-        "n_sections_to_show": n_sections_to_show,
-        "min_distance_targets": min_distance_targets,
-        "min_words_per_section": min_words_per_section,
-        "ratio_target_events": ratio_target_events,
-        "words_per_section": words_per_section,
-        "stimuli_per_block": stimuli_per_block,
-        "stimulus_font_sizes": stimulus_font_sizes,
-        "stimulus_font_min_spacing": stimulus_font_min_spacing,
-        "stimulus_font_max_spacing": stimulus_font_max_spacing,
-        # Text and targets
-        "text": text,  # List of str
-        "is_target": is_target,  # List of bool
-        # Storage
-        "path_out_data": path_out_data,
-        "storage_bucket_name": storage_bucket_name,
-        "storage_blob_name": storage_blob_name,
-        "storage_bucket_credentials": storage_bucket_credentials,
-        # Misc
-        "utility_frequency": utility_frequency,
-        "data_logging_queue": data_logging_queue,
-    }
-
-    logging_process = mp.Process(target=eeg_data_logging, args=(subprocess_params,))
-    logging_process.daemon = True
-    logging_process.start()
 
     # ----------------------------------------------------------------------------------
     # *** Start experiment
@@ -291,22 +147,8 @@ def experiment_text(config: dict):
 
             stimulus_fonts = construct_fonts(font_sizes=stimulus_font_sizes)
 
-            # Clear board buffer.
-            _, _ = eeg_device.get_board_data()
-
             # Pause for specified number of milliseconds.
             pygame.time.delay(int(round(initial_rest_duration * 1000.0)))
-
-            # Send pre-stimulus EEG data (to avoid buffer overflow).
-            eeg_data, eeg_ts = eeg_device.get_board_data()
-            if eeg_data.size > 0:
-                data_logging_queue.put(
-                    {
-                        "type": "eeg",
-                        "eeg_data": eeg_data,
-                        "eeg_timestamps": eeg_ts,
-                    }
-                )
 
             # Count stimuli to introduce breaks between blocks.
             stimulus_block_counter = 0
@@ -368,7 +210,7 @@ def experiment_text(config: dict):
 
                 pygame.display.flip()
                 # Start of stimulus presentation.
-                t_stim_start = eeg_device.lsl_local_clock()
+                t_stim_start = time()
 
                 # ----------------------------------------------------------------------
                 # *** Log previous stimulus
@@ -386,16 +228,12 @@ def experiment_text(config: dict):
                         # current stimulus.
                         t_stim_end_actual = t_stim_start
 
-                    if device_type in ["cyton", "synthetic"]:
-                        eeg_device.insert_marker(text_config.stim_end_marker)
-                    else:
-                        data_logging_queue.put(
-                            {
-                                "type": "marker",
-                                "marker_value": text_config.stim_end_marker,
-                                "timestamp": t_stim_end_actual,
-                            }
-                        )
+                    dummy_log = {
+                        "type": "marker",
+                        "marker_value": text_config.stim_end_marker,
+                        "timestamp": t_stim_end_actual,
+                    }
+                    print(f"data_logging_queue.put: {dummy_log}")
 
                     stimulus_data["response_time_s"] = response_time
                     stimulus_data["stimulus_end_time"] = t_stim_end_actual
@@ -403,28 +241,18 @@ def experiment_text(config: dict):
                         t_stim_end_actual - stimulus_data["stimulus_start_time"]
                     )
 
-                    data_logging_queue.put(
-                        {"type": "stimulus", "stimulus_data": stimulus_data}
-                    )
+                    dummy_log = {"type": "stimulus", "stimulus_data": stimulus_data}
+                    print(f"data_logging_queue.put: {dummy_log}")
 
                 # ----------------------------------------------------------------------
                 # *** Continue stimulus presentation
 
-                # When using an OpenBCI device, we insert a stimulus marker into the
-                # time series data on the EEG board. These markers can be used during
-                # analysis to identify stimulus events. For the DSI-24 device, we
-                # instead use LSL timestamps stored in the hdf5 file for identifying
-                # stimulus events.
-                if device_type in ["cyton", "synthetic"]:
-                    eeg_device.insert_marker(text_config.stim_start_marker)
-                else:
-                    data_logging_queue.put(
-                        {
-                            "type": "marker",
-                            "marker_value": text_config.stim_start_marker,
-                            "timestamp": t_stim_start,
-                        }
-                    )
+                dummy_log = {
+                    "type": "marker",
+                    "marker_value": text_config.stim_start_marker,
+                    "timestamp": t_stim_start,
+                }
+                print(f"data_logging_queue.put: {dummy_log}")
 
                 if stimulus_jitter > 0.0:
                     # Randomly sample stimulus duration jitter for the current trial.
@@ -479,12 +307,12 @@ def experiment_text(config: dict):
                 stimulus_block_counter += 1
 
                 # Continue stimulus presentation until the current stimulus time is up.
-                while eeg_device.lsl_local_clock() < t_stim_end_expected:
+                while time() < t_stim_end_expected:
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                             running = False
                         if event.type == pygame.KEYDOWN:
-                            keydown_time = eeg_device.lsl_local_clock()
+                            keydown_time = time()
                             if event.key == pygame.K_ESCAPE:
                                 running = False
                             # Check for space bar press within the response window.
@@ -504,17 +332,6 @@ def experiment_text(config: dict):
                 if not running:
                     break
 
-                # Log EEG data.
-                eeg_data, eeg_ts = eeg_device.get_board_data()
-                if eeg_data.size > 0:
-                    data_logging_queue.put(
-                        {
-                            "type": "eeg",
-                            "eeg_data": eeg_data,
-                            "eeg_timestamps": eeg_ts,
-                        }
-                    )
-
                 # ----------------------------------------------------------------------
                 # *** Inter-block interval
 
@@ -523,7 +340,7 @@ def experiment_text(config: dict):
                     screen.fill(text_config.rest_condition_color)
                     pygame.display.flip()
                     # Start of inter-block interval.
-                    t_ibi_start = eeg_device.lsl_local_clock()
+                    t_ibi_start = time()
 
                     if use_ibi_audio_cue:
                         # Audio cue to signal the beginning of the inter-block interval.
@@ -536,16 +353,12 @@ def experiment_text(config: dict):
                     # inter-block interval.
                     t_stim_end_actual = t_ibi_start
 
-                    if device_type in ["cyton", "synthetic"]:
-                        eeg_device.insert_marker(text_config.stim_end_marker)
-                    else:
-                        data_logging_queue.put(
-                            {
-                                "type": "marker",
-                                "marker_value": text_config.stim_end_marker,
-                                "timestamp": t_stim_end_actual,
-                            }
-                        )
+                    dummy_log = {
+                        "type": "marker",
+                        "marker_value": text_config.stim_end_marker,
+                        "timestamp": t_stim_end_actual,
+                    }
+                    print(f"data_logging_queue.put: {dummy_log}")
 
                     stimulus_data["response_time_s"] = response_time
                     stimulus_data["stimulus_end_time"] = t_stim_end_actual
@@ -553,9 +366,8 @@ def experiment_text(config: dict):
                         t_stim_end_actual - stimulus_data["stimulus_start_time"]
                     )
 
-                    data_logging_queue.put(
-                        {"type": "stimulus", "stimulus_data": stimulus_data}
-                    )
+                    dummy_log = {"type": "stimulus", "stimulus_data": stimulus_data}
+                    print(f"data_logging_queue.put: {dummy_log}")
 
                     need_to_log_previous_stimulus = False
 
@@ -571,12 +383,10 @@ def experiment_text(config: dict):
                         t_ibi_end_audio_cue = t_ibi_end - pure_tone_end_delay
                         ibi_end_cue_played_yet = False
 
-                    while (
-                        eeg_device.lsl_local_clock() < t_ibi_end
-                    ):  # Continue inter-block interval?
+                    while time() < t_ibi_end:  # Continue inter-block interval?
                         if (
                             use_ibi_audio_cue
-                            and (t_ibi_end_audio_cue <= eeg_device.lsl_local_clock())
+                            and (t_ibi_end_audio_cue <= time())
                             and not ibi_end_cue_played_yet
                         ):  # Time to play end of inter-block interval cue?
                             # Play the cue to signal the end of the inter-block
@@ -585,17 +395,6 @@ def experiment_text(config: dict):
                             ibi_end_cue_played_yet = True
 
                     stimulus_block_counter = 0
-
-                    # Send inter-block EEG data (to avoid buffer overflow).
-                    eeg_data, eeg_ts = eeg_device.get_board_data()
-                    if eeg_data.size > 0:
-                        data_logging_queue.put(
-                            {
-                                "type": "eeg",
-                                "eeg_data": eeg_data,
-                                "eeg_timestamps": eeg_ts,
-                            }
-                        )
 
                     continue
 
@@ -631,17 +430,17 @@ def experiment_text(config: dict):
                 # End of stimulus presentation. Display ISI grey screen.
                 screen.fill(text_config.rest_condition_color)
                 pygame.display.flip()
-                t_stim_end_actual = eeg_device.lsl_local_clock()
+                t_stim_end_actual = time()
                 # Time until when to show grey screen (ISI).
                 t_isi_end = t_stim_end_actual + next_isi_duration
 
                 # Continue checking for late responses or quit events.
-                while eeg_device.lsl_local_clock() < t_isi_end:
+                while time() < t_isi_end:
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                             running = False
                         if event.type == pygame.KEYDOWN:
-                            keydown_time = eeg_device.lsl_local_clock()
+                            keydown_time = time()
                             if event.key == pygame.K_ESCAPE:
                                 running = False
                             # Still check for spacebar presses that are within the
@@ -662,13 +461,6 @@ def experiment_text(config: dict):
                 if not running:
                     break
 
-                # Send post-stimulus EEG data (to avoid buffer overflow).
-                eeg_data, eeg_ts = eeg_device.get_board_data()
-                if eeg_data.size > 0:
-                    data_logging_queue.put(
-                        {"type": "eeg", "eeg_data": eeg_data, "eeg_timestamps": eeg_ts}
-                    )
-
             # --------------------------------------------------------------------------
             # *** Log final stimulus data
 
@@ -676,18 +468,14 @@ def experiment_text(config: dict):
                 if t_stim_end_actual is None:
                     screen.fill(text_config.rest_condition_color)
                     pygame.display.flip()
-                    t_stim_end_actual = eeg_device.lsl_local_clock()
+                    t_stim_end_actual = time()
 
-                if device_type in ["cyton", "synthetic"]:
-                    eeg_device.insert_marker(text_config.stim_end_marker)
-                else:
-                    data_logging_queue.put(
-                        {
-                            "type": "marker",
-                            "marker_value": text_config.stim_end_marker,
-                            "timestamp": t_stim_end_actual,
-                        }
-                    )
+                dummy_log = {
+                    "type": "marker",
+                    "marker_value": text_config.stim_end_marker,
+                    "timestamp": t_stim_end_actual,
+                }
+                print(f"data_logging_queue.put: {dummy_log}")
 
                 stimulus_data["response_time_s"] = response_time
                 stimulus_data["stimulus_end_time"] = t_stim_end_actual
@@ -695,9 +483,8 @@ def experiment_text(config: dict):
                     t_stim_end_actual - stimulus_data["stimulus_start_time"]
                 )
 
-                data_logging_queue.put(
-                    {"type": "stimulus", "stimulus_data": stimulus_data}
-                )
+                dummy_log = {"type": "stimulus", "stimulus_data": stimulus_data}
+                print(f"data_logging_queue.put: {dummy_log}")
 
             # --------------------------------------------------------------------------
             # *** Show behavioural results
@@ -714,9 +501,8 @@ def experiment_text(config: dict):
                 "n_misses": n_misses,
                 "n_false_alarms": n_false_alarms,
             }
-            data_logging_queue.put(
-                {"type": "behavioural", "behavioural_data": behavioural_data}
-            )
+            dummy_log = {"type": "behavioural", "behavioural_data": behavioural_data}
+            print(f"data_logging_queue.put: {dummy_log}")
 
             if running:
                 # Display behavioural results.
@@ -772,13 +558,6 @@ def experiment_text(config: dict):
 
             running = False
 
-            # Send final board data.
-            eeg_data, eeg_ts = eeg_device.get_board_data()
-            if eeg_data.size > 0:
-                data_logging_queue.put(
-                    {"type": "eeg", "eeg_data": eeg_data, "eeg_timestamps": eeg_ts}
-                )
-
         except Exception as e:
             print(f"An error occurred during the experiment: {e}")
             print(traceback.format_exc())
@@ -786,10 +565,3 @@ def experiment_text(config: dict):
         finally:
             pygame.quit()
             print("Experiment closed.")
-
-    eeg_device.stop_stream()
-    eeg_device.release_session()
-
-    print("Join process for sending data")
-    data_logging_queue.put(None)
-    logging_process.join()

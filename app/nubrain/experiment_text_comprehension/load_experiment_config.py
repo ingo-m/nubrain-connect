@@ -36,11 +36,9 @@ class EegExperimentConfig:
 
     stimulus_duration: float
     stimulus_jitter: float
-    stimulus_extension_target: float
 
     isi_duration: float
     isi_jitter: float
-    isi_extension_target: float
 
     inter_block_rest_duration: float
     n_chars_long_word_threshold: int
@@ -49,7 +47,6 @@ class EegExperimentConfig:
 
     # Experiment structure
     # section_idx_start: int  # Moved to `session_config.yaml` for ease of use.
-    n_sections_to_show: int
     stimuli_per_block: int
     stimulus_font_sizes: list[int]
     stimulus_font_min_spacing: float
@@ -145,7 +142,7 @@ class EegExperimentConfig:
         print("Configuration successfully loaded and validated.")
 
 
-def load_config_text_yaml(*, yaml_file_path: str):
+def load_config_text_comprehension_yaml(*, yaml_file_path: str):
     """
     Load yaml file with settings for nubrain EEG experiment.
     """
