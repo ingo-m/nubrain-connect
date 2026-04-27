@@ -4,10 +4,6 @@ lsl_stream_name: "WS-default" # LSL stream name from DSI-Streamer
 
 utility_frequency: 50.0 # Hz
 
-# Moved to `session_config.yaml` for ease of use.
-# subject_id: "sub-001"
-# session_id: "session-001"
-
 output_directory: "C:/Users/nubra/Documents/recordings_text_v1"
 path_stimuli: "C:/Users/nubra/Documents/text/example.json"
 
@@ -33,7 +29,6 @@ extra_duration_per_char: 0.1 # Extra stimulus duration per character above thres
 max_extra_stimulus_duration: 0.4 # Never prolong stimulus duration for more than x seconds (irrespective of number of characters)
 
 # section_idx_start: 0  # Moved to `session_config.yaml` for ease of use.
-n_sections_to_show: 5
 stimuli_per_block: 101
 stimulus_font_sizes: [56, 64, 72]
 stimulus_font_min_spacing: 0.0
