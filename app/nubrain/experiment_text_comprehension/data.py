@@ -60,10 +60,12 @@ def eeg_data_logging(subprocess_params: dict):
     stimulus_font_min_spacing = subprocess_params["stimulus_font_min_spacing"]
     stimulus_font_max_spacing = subprocess_params["stimulus_font_max_spacing"]
 
-    # Text and targets
+    # Stimuli
     text = subprocess_params["text"]  # List of str
-
-    # TODO QUESTIONS
+    stimulus_data = subprocess_params["stimulus_data"]  # List of dicts
+    # `stimulus_data` is a list of dictionaries containing questions and answers to the
+    # comprehension questions:
+    # [{"text_section": "...", "questions_and_answers": "..."}, ...]
 
     # Storage
     path_out_data = subprocess_params["path_out_data"]
@@ -111,10 +113,7 @@ def eeg_data_logging(subprocess_params: dict):
         "stimulus_font_max_spacing": stimulus_font_max_spacing,
         # Text and targets
         "text": text,  # List of str
-
-        raise AssertionError
-        # TODO: QUESTIONS
-
+        "stimulus_data": stimulus_data,  # List of dicts with questions and answers
         # Misc
         "utility_frequency": utility_frequency,
     }
@@ -200,8 +199,6 @@ def eeg_data_logging(subprocess_params: dict):
                 ("font_color_g", np.uint8),
                 ("font_color_b", np.uint8),
                 ("font_spacing", np.float64),
-
-
             ]
         )
 
@@ -219,7 +216,6 @@ def eeg_data_logging(subprocess_params: dict):
                 ("n_questions", np.int64),
                 ("n_answers", np.int64),
                 ("n_correct_answers", np.int64),
-
             ]
         )
 
@@ -339,7 +335,6 @@ def eeg_data_logging(subprocess_params: dict):
                     data_to_write[0]["n_questions"] = n_questions
                     data_to_write[0]["n_answers"] = n_answers
                     data_to_write[0]["n_correct_answers"] = n_correct_answers
-
 
                     # Write the structured array to the dataset.
                     hdf5_behavioural_data[0] = data_to_write

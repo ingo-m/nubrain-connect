@@ -17,8 +17,8 @@ import pygame
 from nubrain.audio.tone import generate_tone
 from nubrain.device.device_interface import create_eeg_device
 from nubrain.experiment_text_comprehension.data import eeg_data_logging
+from nubrain.experiment_text_comprehension.text_config import TextConfig
 from nubrain.experiment_text_comprehension.wrap_text import draw_text_wrapped
-from nubrain.experiment_text_targets.text_config import TextConfig
 from nubrain.misc.datetime import get_formatted_current_datetime
 from nubrain.text.rendering import construct_fonts, render_spaced_text
 
@@ -197,9 +197,9 @@ def experiment_text_comprehension(config: dict):
         "stimulus_font_sizes": stimulus_font_sizes,
         "stimulus_font_min_spacing": stimulus_font_min_spacing,
         "stimulus_font_max_spacing": stimulus_font_max_spacing,
-        # Text and targets
+        # Stimuli
         "text": text,  # List of str
-        "is_target": is_target,  # List of bool
+        "stimulus_data": stimuli,  # List of dicts including questions and answers
         # Storage
         "path_out_data": path_out_data,
         "storage_bucket_name": storage_bucket_name,
@@ -654,8 +654,10 @@ def experiment_text_comprehension(config: dict):
             n_correct_answers = 0
             n_questions = len(questions_and_answers)
 
-            qa_font = pygame.font.SysFont("arial", 36)
+            qa_font = pygame.font.SysFont("arial", 42)
             feedback_font = pygame.font.SysFont("arial", 60, bold=True)
+
+            response_log = []
 
             # Loop through questions.
             for q_idx, q_data in enumerate(questions_and_answers):
@@ -665,41 +667,43 @@ def experiment_text_comprehension(config: dict):
                 question_text = q_data["question"]
                 answers = q_data["answers"]
 
-                answered = False
+                # Clear screen for the question.
+                screen.fill(text_config.rest_condition_color)
 
-                while not answered and running:
-                    # Clear screen for the question.
-                    screen.fill(text_config.rest_condition_color)
+                y_pos = int(screen_height * 0.2)
 
-                    y_pos = int(screen_height * 0.15)
+                y_pos = draw_text_wrapped(
+                    surface=screen,
+                    text=question_text,
+                    font=qa_font,
+                    color=(255, 255, 255),
+                    y_start=y_pos,
+                    max_width=screen_width * 0.8,
+                    screen_width=screen_width,
+                )
+                y_pos += 60  # Add extra spacing before options
 
+                # Draw answer options.
+                for a_idx, ans_data in enumerate(answers):
+                    ans_text = f"[{a_idx + 1}] {ans_data['answer']}"
                     y_pos = draw_text_wrapped(
                         surface=screen,
-                        text=question_text,
+                        text=ans_text,
                         font=qa_font,
                         color=(255, 255, 255),
                         y_start=y_pos,
                         max_width=screen_width * 0.8,
                         screen_width=screen_width,
                     )
-                    y_pos += 60  # Add extra spacing before options
+                    y_pos += 30  # Spacing between answers
 
-                    # Draw answer options.
-                    for a_idx, ans_data in enumerate(answers):
-                        ans_text = f"[{a_idx + 1}] {ans_data['answer']}"
-                        y_pos = draw_text_wrapped(
-                            surface=screen,
-                            text=ans_text,
-                            font=qa_font,
-                            color=(255, 255, 255),
-                            y_start=y_pos,
-                            max_width=screen_width * 0.8,
-                            screen_width=screen_width,
-                        )
-                        y_pos += 30  # Spacing between answers
+                pygame.display.flip()
 
-                    pygame.display.flip()
+                # Capture start time in milliseconds
+                start_ticks = pygame.time.get_ticks()
 
+                answered = False
+                while not answered and running:
                     # Wait for participant input.
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
@@ -720,14 +724,25 @@ def experiment_text_comprehension(config: dict):
                                 else:
                                     selected_idx = event.key - pygame.K_KP1
 
-                                print(
-                                    f"event.key: {event.key} | selected_idx: {selected_idx}"
-                                )
-
                                 # Check if the pressed key corresponds to a valid
                                 # option.
                                 if selected_idx < len(answers):
                                     is_correct = answers[selected_idx]["correct"]
+
+                                    # Calculate response time (in seconds)
+                                    response_time = (
+                                        pygame.time.get_ticks() - start_ticks
+                                    ) / 1000.0
+
+                                    # Log the participant's decision and reaction time
+                                    response_log.append(
+                                        {
+                                            "question_idx": q_idx,
+                                            "selected_answer_idx": selected_idx,
+                                            "is_correct": is_correct,
+                                            "response_time": response_time,
+                                        }
+                                    )
 
                                     if is_correct:
                                         n_correct_answers += 1
@@ -752,13 +767,14 @@ def experiment_text_comprehension(config: dict):
                     pygame.display.flip()
 
                     # Pause for participant to read the feedback.
-                    pygame.time.delay(2000)
+                    pygame.time.delay(1500)
 
             # Write behavioural results to hdf5 file.
             behavioural_data = {
                 "n_questions": n_questions,
                 "n_answers": n_answers,  # Answer options per question
                 "n_correct_answers": n_correct_answers,
+                "response_log": response_log,
             }
             data_logging_queue.put(
                 {"type": "behavioural", "behavioural_data": behavioural_data}
