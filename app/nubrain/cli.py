@@ -2,11 +2,20 @@ import argparse
 import os
 
 from nubrain.experiment_image.load_config import load_config_image_yaml
+from nubrain.experiment_text_comprehension.demo import text_demo_comprehension
+from nubrain.experiment_text_comprehension.load_experiment_config import (
+    load_config_text_comprehension_yaml,
+)
+from nubrain.experiment_text_comprehension.map_config import (
+    map_session_config_comprehension_condition,
+)
 from nubrain.experiment_text_targets.demo import text_demo_targets
 from nubrain.experiment_text_targets.gui import SessionConfigEditor
-from nubrain.experiment_text_targets.load_experiment_config import load_config_text_yaml
+from nubrain.experiment_text_targets.load_experiment_config import (
+    load_config_text_targets_yaml,
+)
 from nubrain.experiment_text_targets.map_config import (
-    map_session_config_to_experiment_config,
+    map_session_config_target_condition,
 )
 
 # Wrap these imports in try, so that the other modules can be imported without
@@ -20,6 +29,7 @@ try:
         experiment_eeg_to_image_v1_autoregressive,
     )
     from nubrain.experiment_image.main import experiment_image
+    from nubrain.experiment_text_comprehension.main import experiment_text_comprehension
     from nubrain.experiment_text_targets.main import experiment_text_targets
 except Exception as e:
     experiment_image = None
@@ -85,8 +95,11 @@ def main():
         # Data collection mode, image stimuli.
         config = load_config_image_yaml(yaml_file_path=input_file_path)
     elif mode in ["demo_text_targets", "data_collection_text_targets"]:
-        # Data collection mode, text stimuli.
-        config = load_config_text_yaml(yaml_file_path=input_file_path)
+        # Data collection mode, text stimuli, repeat words target events.
+        config = load_config_text_targets_yaml(yaml_file_path=input_file_path)
+    elif mode in ["demo_text_comprehension", "data_collection_text_comprehension"]:
+        # Data collection mode, text stimuli, comprehension questions.
+        config = load_config_text_comprehension_yaml(yaml_file_path=input_file_path)
     elif mode in ["eeg_to_image", "eeg_to_image_autoregressive"]:
         # Live EEG to image generation mode. Use corresponding config file loading
         # function (different parameters than regular data collection).
@@ -113,7 +126,7 @@ def main():
             print("Cancelled.")
             return None
         # Map values (subject, session, run) from session config to experiment config.
-        config = map_session_config_to_experiment_config(
+        config = map_session_config_target_condition(
             session_config=session_config,
             experiment_config=config,
         )
@@ -121,6 +134,30 @@ def main():
             experiment_text_targets(config=config)
         elif mode == "demo_text_targets":
             text_demo_targets(config=config)
+        else:
+            raise AssertionError
+    elif mode in ["demo_text_comprehension", "data_collection_text_comprehension"]:
+        # Show GUI for user to update session parameters (subject ID, next run).
+        session_config_path = os.path.join(
+            os.path.dirname(__file__),
+            "experiment_text_comprehension",
+            "session_config.yaml",
+        )
+        gui = SessionConfigEditor(session_config_path=session_config_path)
+        session_config = gui.run()
+        if session_config is None:
+            # User pressed the cancel button.
+            print("Cancelled.")
+            return None
+        # Map values (subject, session, run) from session config to experiment config.
+        config = map_session_config_comprehension_condition(
+            session_config=session_config,
+            experiment_config=config,
+        )
+        if mode == "data_collection_text_comprehension":
+            experiment_text_comprehension(config=config)
+        elif mode == "demo_text_comprehension":
+            text_demo_comprehension(config=config)
         else:
             raise AssertionError
     elif mode == "eeg_to_image":

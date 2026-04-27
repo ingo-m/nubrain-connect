@@ -145,7 +145,7 @@ class EegExperimentConfig:
         print("Configuration successfully loaded and validated.")
 
 
-def load_config_text_yaml(*, yaml_file_path: str):
+def load_config_text_targets_yaml(*, yaml_file_path: str):
     """
     Load yaml file with settings for nubrain EEG experiment.
     """

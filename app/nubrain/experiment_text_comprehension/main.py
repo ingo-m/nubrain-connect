@@ -17,6 +17,7 @@ import pygame
 from nubrain.audio.tone import generate_tone
 from nubrain.device.device_interface import create_eeg_device
 from nubrain.experiment_text_comprehension.data import eeg_data_logging
+from nubrain.experiment_text_comprehension.wrap_text import draw_text_wrapped
 from nubrain.experiment_text_targets.text_config import TextConfig
 from nubrain.misc.datetime import get_formatted_current_datetime
 from nubrain.text.rendering import construct_fonts, render_spaced_text
@@ -24,7 +25,7 @@ from nubrain.text.rendering import construct_fonts, render_spaced_text
 mp.set_start_method("spawn", force=True)  # Necessary on if running on windows?
 
 
-def experiment_text_targets(config: dict):
+def experiment_text_comprehension(config: dict):
     # ----------------------------------------------------------------------------------
     # *** Get config
 
@@ -87,7 +88,7 @@ def experiment_text_targets(config: dict):
     # Only used for logging.
     words_per_section = stimuli["words_per_section"]
     min_words_per_section = stimuli["min_words_per_section"]
-    n_answers = stimuli["n_answers"]
+    n_answers = stimuli["n_answers"]  # Answer options per question
     n_questions = stimuli["n_questions"]
 
     stimuli = stimuli["stimulus_data"]
@@ -650,15 +651,113 @@ def experiment_text_targets(config: dict):
             # --------------------------------------------------------------------------
             # *** Show multiple choice questions
 
-            # TODO Show multiple choice questions and have participant answer the question
-            raise NotImplementerError()
+            n_correct_answers = 0
+            n_questions = len(questions_and_answers)
 
-            # ...
+            qa_font = pygame.font.SysFont("arial", 36)
+            feedback_font = pygame.font.SysFont("arial", 60, bold=True)
+
+            # Loop through questions.
+            for q_idx, q_data in enumerate(questions_and_answers):
+                if not running:
+                    break
+
+                question_text = q_data["question"]
+                answers = q_data["answers"]
+
+                answered = False
+
+                while not answered and running:
+                    # Clear screen for the question.
+                    screen.fill(text_config.rest_condition_color)
+
+                    y_pos = int(screen_height * 0.15)
+
+                    y_pos = draw_text_wrapped(
+                        surface=screen,
+                        text=question_text,
+                        font=qa_font,
+                        color=(255, 255, 255),
+                        y_start=y_pos,
+                        max_width=screen_width * 0.8,
+                        screen_width=screen_width,
+                    )
+                    y_pos += 60  # Add extra spacing before options
+
+                    # Draw answer options.
+                    for a_idx, ans_data in enumerate(answers):
+                        ans_text = f"[{a_idx + 1}] {ans_data['answer']}"
+                        y_pos = draw_text_wrapped(
+                            surface=screen,
+                            text=ans_text,
+                            font=qa_font,
+                            color=(255, 255, 255),
+                            y_start=y_pos,
+                            max_width=screen_width * 0.8,
+                            screen_width=screen_width,
+                        )
+                        y_pos += 30  # Spacing between answers
+
+                    pygame.display.flip()
+
+                    # Wait for participant input.
+                    for event in pygame.event.get():
+                        if event.type == pygame.QUIT:
+                            running = False
+                        elif event.type == pygame.KEYDOWN:
+                            if event.key == pygame.K_ESCAPE:
+                                running = False
+                            # Map keys 1-4 (standard number row or numpad) to answer
+                            # indices 0-3.
+                            elif (
+                                pygame.K_1 <= event.key <= pygame.K_9
+                                or pygame.K_KP1 <= event.key <= pygame.K_KP9
+                            ):
+                                # Determine which number was pressed, handling both top
+                                # row and numpad.
+                                if pygame.K_1 <= event.key <= pygame.K_9:
+                                    selected_idx = event.key - pygame.K_1
+                                else:
+                                    selected_idx = event.key - pygame.K_KP1
+
+                                print(
+                                    f"event.key: {event.key} | selected_idx: {selected_idx}"
+                                )
+
+                                # Check if the pressed key corresponds to a valid
+                                # option.
+                                if selected_idx < len(answers):
+                                    is_correct = answers[selected_idx]["correct"]
+
+                                    if is_correct:
+                                        n_correct_answers += 1
+                                        feedback_text = "Correct"
+                                        feedback_color = (0, 255, 0)  # Green
+                                    else:
+                                        feedback_text = "Incorrect"
+                                        feedback_color = (255, 0, 0)  # Red
+
+                                    answered = True
+
+                # Display feedback (whether the answer was correct).
+                if running:
+                    screen.fill(text_config.rest_condition_color)
+                    feedback_surface = feedback_font.render(
+                        feedback_text, True, feedback_color
+                    )
+                    feedback_rect = feedback_surface.get_rect(
+                        center=(screen_width // 2, screen_height // 2)
+                    )
+                    screen.blit(feedback_surface, feedback_rect)
+                    pygame.display.flip()
+
+                    # Pause for participant to read the feedback.
+                    pygame.time.delay(2000)
 
             # Write behavioural results to hdf5 file.
             behavioural_data = {
                 "n_questions": n_questions,
-                "n_answers": n_answers,
+                "n_answers": n_answers,  # Answer options per question
                 "n_correct_answers": n_correct_answers,
             }
             data_logging_queue.put(
