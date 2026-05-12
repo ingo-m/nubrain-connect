@@ -40,5 +40,5 @@ nubrain --mode=data_collection_image --config=/path/to/example_config.yaml
 
 ```bash
 conda activate py-nubrain
-nubrain --mode=demo_text_targets --config=/path/to/experiment_config_demo_text.yaml
+nubrain --mode=demo_text_comprehension --config=/path/to/experiment_config_demo_text.yaml
 ```

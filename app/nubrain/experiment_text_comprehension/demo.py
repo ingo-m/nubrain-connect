@@ -378,7 +378,6 @@ def text_demo_comprehension(config: dict):
                 if next_isi_duration < 0.0167:
                     # Skip ISI if ISI duration is less than one frame (assuming 60 Hz
                     # refresh rate). The stimulus stays on screen for now.
-                    print("Skipping ISI")
                     t_stim_end_actual = None  # No ISI, the stimulus is still shown
                     continue
 
@@ -470,6 +469,10 @@ def text_demo_comprehension(config: dict):
 
                 pygame.display.flip()
 
+                # Flush any lingering key presses from the previous question's feedback
+                # period (or accidental double-taps).
+                pygame.event.clear()
+
                 # Capture start time in milliseconds
                 start_ticks = pygame.time.get_ticks()
 
@@ -526,19 +529,55 @@ def text_demo_comprehension(config: dict):
                                     answered = True
 
                 # Display feedback (whether the answer was correct).
-                if running:
-                    screen.fill(text_config.rest_condition_color)
-                    feedback_surface = feedback_font.render(
-                        feedback_text, True, feedback_color
-                    )
-                    feedback_rect = feedback_surface.get_rect(
-                        center=(screen_width // 2, screen_height // 2)
-                    )
-                    screen.blit(feedback_surface, feedback_rect)
-                    pygame.display.flip()
+                if not running:
+                    break
 
-                    # Pause for participant to read the feedback.
-                    pygame.time.delay(1500)
+                screen.fill(text_config.rest_condition_color)
+                feedback_surface = feedback_font.render(
+                    feedback_text, True, feedback_color
+                )
+                feedback_rect = feedback_surface.get_rect(
+                    center=(screen_width // 2, screen_height // 2)
+                )
+                screen.blit(feedback_surface, feedback_rect)
+                pygame.display.flip()
+
+                # Pause for participant to read the feedback.
+                pygame.time.delay(1500)
+
+                # If the answer was incorrect, show the correct answer.
+                if not is_correct:
+                    # Find the correct answer text.
+                    correct_answer_text = None
+                    for a_idx, ans_data in enumerate(answers):
+                        if ans_data["correct"]:
+                            correct_answer_text = f"[{a_idx + 1}] {ans_data['answer']}"
+                            break
+
+                    if correct_answer_text is not None:
+                        screen.fill(text_config.rest_condition_color)
+                        y_pos = int(screen_height * 0.4)
+                        y_pos = draw_text_wrapped(
+                            surface=screen,
+                            text="The correct answer was:",
+                            font=qa_font,
+                            color=(255, 255, 255),
+                            y_start=y_pos,
+                            max_width=screen_width * 0.8,
+                            screen_width=screen_width,
+                        )
+                        y_pos += 60
+                        y_pos = draw_text_wrapped(
+                            surface=screen,
+                            text=correct_answer_text,
+                            font=qa_font,
+                            color=(255, 255, 255),
+                            y_start=y_pos,
+                            max_width=screen_width * 0.8,
+                            screen_width=screen_width,
+                        )
+                        pygame.display.flip()
+                        pygame.time.delay(3000)
 
             behavioural_data = {
                 "n_questions": n_questions,
